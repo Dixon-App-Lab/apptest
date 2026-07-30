@@ -1,0 +1,34 @@
+{
+  "name": "Fresh Draw — NZ Lotto number generator",
+  "short_name": "Fresh Draw",
+  "description": "Generates an NZ Lotto line, skipping combinations that have already won.",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#100e1c",
+  "theme_color": "#1b1638",
+  "lang": "en-NZ",
+  "categories": ["utilities", "entertainment"],
+  "icons": [
+    {
+      "src": "./icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "./icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

@@ -1,0 +1,171 @@
+<title>Fresh Draw — Dev Board</title>
+<style>
+  :root{
+    --bg:#f6f7f9; --card:#ffffff; --ink:#1a2230; --sub:#5d6b80; --line:#e3e7ee;
+    --col:#eceff4; --amber:#b45309; --amber-bg:#fef3c7; --sky:#0369a1; --sky-bg:#e0f2fe;
+    --green:#047857; --green-bg:#d1fae5; --slate:#475569; --slate-bg:#e2e8f0;
+  }
+  @media (prefers-color-scheme: dark){:root{
+    --bg:#0d1117; --card:#161b26; --ink:#e6eaf2; --sub:#8b98ac; --line:#252d3d;
+    --col:#11161f; --amber:#fbbf24; --amber-bg:#3a2c08; --sky:#7dd3fc; --sky-bg:#082f49;
+    --green:#6ee7b7; --green-bg:#053b2c; --slate:#cbd5e1; --slate-bg:#283244;
+  }}
+  :root[data-theme="light"]{
+    --bg:#f6f7f9; --card:#ffffff; --ink:#1a2230; --sub:#5d6b80; --line:#e3e7ee;
+    --col:#eceff4; --amber:#b45309; --amber-bg:#fef3c7; --sky:#0369a1; --sky-bg:#e0f2fe;
+    --green:#047857; --green-bg:#d1fae5; --slate:#475569; --slate-bg:#e2e8f0;
+  }
+  :root[data-theme="dark"]{
+    --bg:#0d1117; --card:#161b26; --ink:#e6eaf2; --sub:#8b98ac; --line:#252d3d;
+    --col:#11161f; --amber:#fbbf24; --amber-bg:#3a2c08; --sky:#7dd3fc; --sky-bg:#082f49;
+    --green:#6ee7b7; --green-bg:#053b2c; --slate:#cbd5e1; --slate-bg:#283244;
+  }
+  body{background:var(--bg);color:var(--ink);font:15px/1.45 -apple-system,"Segoe UI",Roboto,Arial,sans-serif;margin:0;padding:24px}
+  header{max-width:1400px;margin:0 auto 18px}
+  h1{font-size:20px;margin:0 0 4px}
+  .meta{color:var(--sub);font-size:13px}
+  .howto{max-width:1400px;margin:0 auto 20px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 14px;font-size:13.5px;color:var(--sub)}
+  .howto b{color:var(--ink)}
+  .board{display:flex;gap:14px;overflow-x:auto;padding-bottom:12px;max-width:1400px;margin:0 auto}
+  .colm{flex:0 0 300px;background:var(--col);border:1px solid var(--line);border-radius:12px;padding:10px}
+  .colm h2{font-size:12px;letter-spacing:.06em;text-transform:uppercase;margin:4px 6px 10px;display:flex;justify-content:space-between;align-items:center}
+  .count{background:var(--slate-bg);color:var(--slate);border-radius:99px;padding:1px 8px;font-size:11px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:9px;padding:9px 11px;margin-bottom:8px}
+  .card .id{font-family:ui-monospace,Consolas,monospace;font-size:11px;color:var(--sub);margin-right:6px}
+  .card .t{font-weight:600;font-size:13.5px}
+  .card .d{font-size:12.5px;color:var(--sub);margin-top:3px}
+  .tag{display:inline-block;border-radius:99px;padding:1px 8px;font-size:10.5px;font-weight:600;margin-top:6px}
+  .tag.gate{background:var(--amber-bg);color:var(--amber)}
+  .tag.big{background:var(--sky-bg);color:var(--sky)}
+  .tag.small{background:var(--slate-bg);color:var(--slate)}
+  .tag.decision{background:var(--amber-bg);color:var(--amber)}
+  .tag.done{background:var(--green-bg);color:var(--green)}
+  h2.blocked{color:var(--amber)} h2.next{color:var(--sky)} h2.donec{color:var(--green)}
+</style>
+
+<header>
+  <h1>Fresh Draw — Dev Board</h1>
+  <div class="meta">Updated 30 Jul 2026 · source of truth for what's queued, what's blocked on the Product Owner, and what shipped</div>
+</header>
+
+<div class="howto">
+  <b>How to drive this:</b> tell your AI assistant in chat, e.g. <b>"promote B2 to Next"</b>, <b>"unblock G1 — go"</b>, <b>"park B7"</b>, <b>"add: …"</b>, or just say what you noticed while testing — it lands in the <b>Feedback Inbox</b> first, dated and untouched, then gets triaged into a backlog card (or a decision) once you confirm. Ask <b>"standup"</b> any time for a 3-line catch-up: what happened, what's blocked, what's next. This file is committed to the repo (not just kept in a chat or a published artifact) so any session — or any collaborator — can read it from source instead of guessing. Nothing here builds without your word.
+</div>
+
+<div class="board">
+
+  <div class="colm">
+    <h2>📥 Feedback Inbox — raw, pre-triage <span class="count">2</span></h2>
+
+    <div class="card"><span class="t">30 Jul 2026 — the original ask</span>
+      <div class="d">"project description: lotto number generator. platform PWA, will test on Android first. user req: on demand produce a lotto draw I could use but avoid number combinations that have already won, using publicly avail info"<br><br><i>triaged → shipped as the v1 app; the real-data half became B1/D1.</i></div></div>
+
+    <div class="card"><span class="t">How this works</span>
+      <div class="d">Your raw asks/observations land here first — dated, unedited, no judgement about priority yet. Nothing sits here silently: each item gets triaged into a numbered backlog card (B-something) or a decision (D-something) once you confirm the framing, and the inbox card is marked <i>triaged →</i>.<br><br>Why this column exists: without a single, recency-ordered, committed place for raw feedback, "what did I just tell you?" gets answered by guessing at a stale commit message instead of reading the actual latest ask. Keep this column boring and literal — it's a landing pad, not a to-do list.</div></div>
+  </div>
+
+  <div class="colm">
+    <h2>🗣️ Standup Log — session handoffs <span class="count">3</span></h2>
+
+    <div class="card"><span class="id">30 Jul 2026 (migration)</span><span class="t">Moved to a fresh public repo, <code>apptest</code>, with clean history</span>
+      <div class="d"><b>Did:</b> copied the working tree from <code>test-</code> at <code>main</code> into the new <code>antonydixon-lab/apptest</code> and committed it as a single commit — no history inherited, the old <code>.git</code> discarded. The move was about author metadata, not file contents: <code>test-</code>'s one commit carried the owner's real email in its author field, and that cannot be corrected in place without rewriting history, which is the wrong tool for a repo about to go public. File contents were already clean; confirmed with a tree-wide grep for the address before committing, and the commit author here is <code>Claude &lt;noreply@anthropic.com&gt;</code>. Verification harness re-run against the copy — all checks pass. Straight migration, no feature work. Two of G1's three steps (rename, make public) are satisfied by the new repo existing, so G1 is down to Pages alone.<br><br><b>Blocked on:</b> G1 — the Pages source still has to be set to GitHub Actions by hand.<br><br><b>Next:</b> unchanged — D1, then B1. <code>test-</code> is the owner's to delete or archive.</div></div>
+
+    <div class="card"><span class="id">30 Jul 2026 (later)</span><span class="t">Verification now runs in CI on every PR</span>
+      <div class="d"><b>Did:</b> added <code>.github/workflows/verify.yml</code> — installs Chromium, serves the app and runs the same browser check as locally, uploading the rendered screenshots as an artifact. Two runs green in ~50s each. Reading the logs rather than the tick caught that several checks were <code>console.log</code> lines pretending to be assertions; service worker, manifest install criteria and the <code>[hidden]</code> regression guard are now real assertions, and the one genuinely environment-dependent observation (whether emulated offline reaches <code>navigator.onLine</code>) is labelled as such.<br><br><b>Blocked on:</b> G1 still — Pages is not enabled.<br><br><b>Next:</b> unchanged — D1, then B1.</div></div>
+
+    <div class="card"><span class="id">30 Jul 2026</span><span class="t">v1 built and verified; running on placeholder draw data</span>
+      <div class="d"><b>Did:</b> confirmed this repo is <code>test-</code> templated from the SDLC framework (no app code existed — the filled-in-looking CLAUDE.md was template boilerplate). Built the Fresh Draw PWA: vanilla HTML/CSS/JS, no build step, crypto-backed generation, past-draw exclusion by canonical-key Set, offline service worker, installable manifest. Wrote a real browser verification harness (<code>npm run verify</code>) — it caught two genuine bugs: an author <code>display</code> rule silently defeating the <code>hidden</code> attribute so the offline banner never hid, and the six main balls wrapping 5+1 on a phone.<br><br><b>Blocked on:</b> G1 — GitHub Pages has to be enabled by hand before the phone can install it.<br><br><b>Next:</b> D1 (pick a real data source), then B1 (swap the synthetic dataset out).</div></div>
+
+    <!--
+      Newest entry first. Fixed shape per entry:
+      <id>date</id> <title>one-line what happened</title>
+      Did: / Blocked on: / Next:
+      This is what a fresh session reads first for "what happened recently."
+      Never delete old entries — append only.
+    -->
+  </div>
+
+  <div class="colm">
+    <h2 class="blocked">⛔ Blocked — needs your GO <span class="count">1</span></h2>
+
+    <div class="card"><span class="id">G1</span><span class="t">One settings visit: enable Pages</span>
+      <div class="d">Was three steps; the first two are <b>done</b> — not by editing <code>test-</code>'s settings but by migrating to a fresh repo that is already named <code>apptest</code> and already public (see the migration entry in the standup log). What's left is UI-only and can't be done from a session:<br><br>
+      <b>Enable Pages</b> — Settings → Pages → Source → <b>GitHub Actions</b>. No save button; it applies on selection.<br><br>
+      <code>.github/workflows/deploy.yml</code> is already committed and fires on push to <code>main</code>, so the deploy runs as soon as the source is set. Live URL becomes <code>https://antonydixon-lab.github.io/apptest/</code>.<br><br>
+      <s>1. Rename → <code>apptest</code></s> — done via the migration; D2 satisfied.<br>
+      <s>2. Make public</s> — done; <code>apptest</code> was created public. Pages does not work on private repos on the Free plan. Scanned for secrets: none.</div>
+      <span class="tag gate">PO gate: set the Pages source, then say "done"</span></div>
+
+    <!--
+      Items that are scoped and ready, but need an explicit product-owner
+      decision before any code gets written — a paid integration, a
+      security tradeoff, anything with real cost or risk attached.
+      <div class="card"><span class="id">G1</span><span class="t">…</span>
+        <div class="d">…</div>
+        <span class="tag gate">PO gate: "…"</span></div>
+    -->
+  </div>
+
+  <div class="colm">
+    <h2>📋 Backlog — review &amp; prioritise <span class="count">3</span></h2>
+
+    <div class="card"><span class="id">B1</span><span class="t">Swap in real NZ Lotto history</span>
+      <div class="d">Replace <code>data/draws.json</code> with real draws and set <code>meta.synthetic</code> to <code>false</code>, which drops the warning banner automatically. No app code changes — the schema is the contract. Depends on D1.</div>
+      <span class="tag small">Small once D1 is settled</span></div>
+
+    <div class="card"><span class="id">B2</span><span class="t">Keep the dataset current after each draw</span>
+      <div class="d">Draws are Wed/Sat. Options: manual re-export, or a scheduled GitHub Action that fetches and commits (runners have open network, unlike the dev container). Only worth doing once the data is real.</div>
+      <span class="tag small">Small</span></div>
+
+    <div class="card"><span class="id">B3</span><span class="t">Check install behaviour on iPhone</span>
+      <div class="d">Same PWA should add to the home screen via Safari → Share → Add to Home Screen. Worth confirming the standalone display, icon and offline cache all behave, since iOS PWA support differs from Chrome's.</div>
+      <span class="tag small">Small</span></div>
+
+    <!--
+      Triaged, numbered, ready to pick up. Numbered IDs (B1, B2, …) make
+      items addressable in chat without re-describing them each time.
+      <div class="card"><span class="id">B1</span><span class="t">…</span>
+        <div class="d">…</div>
+        <span class="tag small">Small</span></div>
+    -->
+  </div>
+
+  <div class="colm">
+    <h2 class="next">⏭ Decisions pending (yours) <span class="count">1</span></h2>
+
+    <div class="card"><span class="id">D1</span><span class="t">Where real draw history comes from</span>
+      <div class="d">There is <b>no official public MyLotto API</b> — checked, nothing documented. That leaves a CSV export from an aggregator (lotteryresults.co.nz has one), scraping a third-party site, or asking Lotto NZ directly. Scraping is the only fully automatic option and is the most ToS-grey. Your call on which is acceptable for an R&amp;D toy.</div>
+      <span class="tag decision">Decide</span></div>
+
+    <!--
+      Things that need a yes/no or a judgement call, not a build — kept
+      separate from Blocked because nothing is scoped to start once decided.
+      <div class="card"><span class="id">D1</span><span class="t">…</span>
+        <div class="d">…</div>
+        <span class="tag decision">Decide</span></div>
+    -->
+  </div>
+
+  <div class="colm">
+    <h2 class="donec">✅ Shipped <span class="count">4</span></h2>
+
+    <div class="card"><span class="id">D2</span><span class="t">Decided: rename the repo to <code>apptest</code></span>
+      <div class="d">Settled while <code>test-</code> still had no installs pointing at it, which is the only cheap moment to do it — a rename after the PWA is on a phone leaves the installed app aimed at a dead URL. Also drops the awkward trailing hyphen from the Pages URL. Execution is in G1. <b>Decided 30 Jul 2026.</b></div></div>
+
+    <div class="card"><span class="id">B4</span><span class="t">Browser verification in CI</span>
+      <div class="d">Runs on every pull request, push to <code>main</code>, and manual dispatch. Server and check share one step, because a background process started in one step is not guaranteed to survive into the next. Screenshots uploaded on pass and fail. The <code>[hidden]</code> guard was negative-tested — it fails when the CSS rule is removed and passes when restored. <b>Shipped 30 Jul 2026.</b></div></div>
+
+    <div class="card"><span class="id">B0</span><span class="t">Fresh Draw v1 — generator, exclusion, offline, installable</span>
+      <div class="d">Vanilla HTML/CSS/JS PWA. <code>crypto.getRandomValues</code> with rejection sampling (no modulo bias); past draws held as canonical sorted keys in a <code>Set</code>; cache-first service worker; manifest with maskable icon meeting Android install criteria. Verified in a real browser: 25 generated lines all in range, distinct, ascending and absent from the past-draw set; offline reload works. <b>Shipped 30 Jul 2026.</b></div></div>
+
+    <div class="card"><span class="id">D0</span><span class="t">Decided: build on synthetic data first</span>
+      <div class="d">The dev container's egress policy blocks mylotto.co.nz and the aggregators, so no draw data could be fetched here at all. Rather than block, v1 ships against a generated 4,069-draw stand-in of the correct shape — which also means the data swap is exercised as a real code path rather than assumed. <b>Decided 30 Jul 2026.</b></div></div>
+
+    <!--
+      Done, with a ship date. Keep the original card ID so history stays
+      traceable — don't renumber on completion.
+      <div class="card"><span class="id">B1</span><span class="t">…</span><div class="d">… <b>Shipped [date].</b></div></div>
+    -->
+  </div>
+
+</div>

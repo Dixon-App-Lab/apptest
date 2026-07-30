@@ -1,0 +1,14 @@
+{
+  "name": "fresh-draw",
+  "private": true,
+  "description": "NZ Lotto line generator PWA that skips previously drawn combinations.",
+  "scripts": {
+    "data": "node tools/generate-synthetic-draws.mjs",
+    "icons": "node tools/build-icons.mjs",
+    "serve": "python3 -m http.server 8765 --bind 127.0.0.1",
+    "verify": "node tools/verify.mjs"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.62.0"
+  }
+}

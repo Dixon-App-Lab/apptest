@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en-NZ">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Fresh Draw — NZ Lotto number generator</title>
+<meta name="description" content="Generates an NZ Lotto line, skipping combinations that have already won.">
+<meta name="theme-color" content="#1b1638">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" href="./icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="./icons/icon-512.png">
+<link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+
+<header class="head">
+  <h1>Fresh Draw</h1>
+  <p class="sub">NZ Lotto &middot; 6 from 40 plus Powerball</p>
+  <p class="badge" id="dataBadge" hidden></p>
+</header>
+
+<main>
+  <section class="stage" aria-labelledby="resultHeading">
+    <h2 class="sr-only" id="resultHeading">Your line</h2>
+
+    <div class="balls" id="balls" aria-live="polite" aria-atomic="true">
+      <p class="placeholder" id="placeholder">Tap below for a line.</p>
+    </div>
+
+    <button class="generate" id="generate" type="button" disabled>Loading draws&hellip;</button>
+
+    <p class="readout" id="readout"></p>
+  </section>
+
+  <section class="panel">
+    <details>
+      <summary>Does skipping past winners improve my odds?</summary>
+      <div class="prose">
+        <p><strong>No.</strong> It makes no difference at all, and it is worth
+        understanding why before you read anything else into this app.</p>
+        <p>There are <strong id="spaceSize">&mdash;</strong> possible ways to
+        choose 6 numbers from 40. Past draws account for
+        <strong id="excludedShare">&mdash;</strong> of them. Removing those
+        leaves your chance of matching all six at roughly
+        <strong id="oddsAfter">&mdash;</strong> — indistinguishable from the
+        <strong id="oddsBefore">&mdash;</strong> you started with.</p>
+        <p>More importantly, the machine has no memory. A combination that won
+        in 1994 is exactly as likely to come up on Saturday as one that never
+        has. "Due" numbers and "burnt out" numbers are the
+        <a href="https://en.wikipedia.org/wiki/Gambler%27s_fallacy" rel="noopener">gambler's
+        fallacy</a>, and this constraint doesn't escape it.</p>
+        <p>What the filter <em>does</em> give you is a line nobody has ever won
+        with — which is a fun property, and a genuinely interesting programming
+        problem, but not an advantage.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>Where the numbers come from</summary>
+      <div class="prose">
+        <p>Lines are drawn using <code>crypto.getRandomValues</code>, the
+        browser's cryptographic random source, rather than
+        <code>Math.random</code>.</p>
+        <p id="dataProvenance"></p>
+        <p>The check is a set-membership test: each combination is sorted and
+        joined into a key like <code>3-11-19-24-31-38</code>, so looking one up
+        among thousands is effectively instant. If a generated line matches a
+        past draw it is thrown away and redrawn — the attempt count above shows
+        how often that happened.</p>
+        <p>Only the six main numbers are compared. The Powerball is drawn
+        independently and not part of the exclusion.</p>
+      </div>
+    </details>
+  </section>
+
+  <section class="panel" id="historyPanel" hidden>
+    <div class="panel-head">
+      <h2>This session</h2>
+      <button class="link" id="clearHistory" type="button">Clear</button>
+    </div>
+    <ol class="history" id="history"></ol>
+  </section>
+</main>
+
+<footer>
+  <p>Built as an R&amp;D experiment. Not affiliated with Lotto NZ.</p>
+  <p id="offline" class="offline" hidden>Offline &mdash; running from cache.</p>
+</footer>
+
+<script src="./app.js" type="module"></script>
+</body>
+</html>

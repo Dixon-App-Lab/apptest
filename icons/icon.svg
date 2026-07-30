@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#241c52"/>
+      <stop offset="1" stop-color="#120e2a"/>
+    </linearGradient>
+    <linearGradient id="ballA" x1="0.2" y1="0" x2="0.8" y2="1">
+      <stop offset="0" stop-color="#8b73ff"/>
+      <stop offset="1" stop-color="#4b2fb5"/>
+    </linearGradient>
+    <linearGradient id="ballB" x1="0.2" y1="0" x2="0.8" y2="1">
+      <stop offset="0" stop-color="#f0f0ff"/>
+      <stop offset="1" stop-color="#c8c4e8"/>
+    </linearGradient>
+    <linearGradient id="ballC" x1="0.2" y1="0" x2="0.8" y2="1">
+      <stop offset="0" stop-color="#f2626d"/>
+      <stop offset="1" stop-color="#b0202f"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="512" height="512" fill="url(#bg)"/>
+
+  <!-- Three balls, kept inside the central 80% so the same art survives a
+       maskable crop on Android. -->
+  <g>
+    <circle cx="186" cy="212" r="78" fill="url(#ballA)"/>
+    <text x="186" y="212" font-family="system-ui, sans-serif" font-size="76"
+          font-weight="700" fill="#ffffff" text-anchor="middle"
+          dominant-baseline="central">7</text>
+
+    <circle cx="326" cy="212" r="78" fill="url(#ballB)"/>
+    <text x="326" y="212" font-family="system-ui, sans-serif" font-size="76"
+          font-weight="700" fill="#241c52" text-anchor="middle"
+          dominant-baseline="central">23</text>
+
+    <circle cx="256" cy="336" r="78" fill="url(#ballC)"/>
+    <text x="256" y="336" font-family="system-ui, sans-serif" font-size="76"
+          font-weight="700" fill="#ffffff" text-anchor="middle"
+          dominant-baseline="central">40</text>
+  </g>
+</svg>

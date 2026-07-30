@@ -1,0 +1,299 @@
+/* Mobile-first. Everything sized for a thumb on a phone, since Android is the
+   first install target. */
+
+:root {
+  --bg: #f4f3f9;
+  --surface: #ffffff;
+  --text: #17152a;
+  --muted: #605c78;
+  --line: #e2e0ec;
+  --accent: #4b2fb5;
+  --accent-ink: #ffffff;
+  --ball: linear-gradient(160deg, #5c3fd0, #341f8f);
+  --powerball: linear-gradient(160deg, #e8434f, #b0202f);
+  --warn-bg: #fff4d6;
+  --warn-ink: #6b4a00;
+  --warn-line: #e8cf95;
+  --radius: 16px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #100e1c;
+    --surface: #1a1830;
+    --text: #f0eefa;
+    --muted: #a29dbd;
+    --line: #2c2947;
+    --accent: #8b73ff;
+    --accent-ink: #14102b;
+    --warn-bg: #3a2f10;
+    --warn-ink: #f5dc9a;
+    --warn-line: #5b4a1c;
+  }
+}
+
+* { box-sizing: border-box; }
+
+/* Any author-set `display` beats the UA stylesheet's [hidden] rule, which
+   silently defeats the hidden attribute. Restate it so toggling `hidden` in JS
+   works on every element, not just the ones without a display of their own. */
+[hidden] { display: none !important; }
+
+body {
+  margin: 0;
+  padding: 0 1rem 3rem;
+  background: var(--bg);
+  color: var(--text);
+  font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  max-width: 34rem;
+  margin-inline: auto;
+  -webkit-text-size-adjust: 100%;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Header */
+
+.head {
+  padding: 2rem 0 1.25rem;
+  text-align: center;
+}
+
+.head h1 {
+  margin: 0;
+  font-size: 1.9rem;
+  letter-spacing: -0.02em;
+}
+
+.sub {
+  margin: 0.25rem 0 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.badge {
+  margin: 1rem 0 0;
+  padding: 0.6rem 0.8rem;
+  background: var(--warn-bg);
+  color: var(--warn-ink);
+  border: 1px solid var(--warn-line);
+  border-radius: 10px;
+  font-size: 0.82rem;
+  text-align: left;
+}
+
+/* Generator */
+
+.stage {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 1.5rem 1.25rem;
+}
+
+.balls {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 0.55rem;
+  min-height: 4rem;
+  /* Room for the Powerball's label, which hangs below its ball. */
+  padding-bottom: 1rem;
+}
+
+/* Six equal columns rather than a wrapping flex row: at 3.1rem a ball is a few
+   pixels too wide to fit six across a narrow phone, and wrapping to 5 + 1 looks
+   like a mistake. The grid keeps one row at any width, shrinking the balls
+   instead. */
+.row.main {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  justify-items: center;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.row.power {
+  display: flex;
+  justify-content: center;
+}
+
+.placeholder {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.ball {
+  position: relative;
+  width: 100%;
+  max-width: 3.1rem;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: clamp(0.95rem, 4.2vw, 1.2rem);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  color: #fff;
+  background: var(--ball);
+  box-shadow: inset 0 -2px 6px rgb(0 0 0 / 0.25), 0 2px 5px rgb(0 0 0 / 0.18);
+  animation: pop 0.24s cubic-bezier(0.2, 1.5, 0.4, 1) backwards;
+}
+
+.ball.pb {
+  background: var(--powerball);
+  width: 3.1rem; /* not grid-constrained, so give it the full size */
+}
+
+.ball.pb::after {
+  content: "PB";
+  position: absolute;
+  inset: auto 0 -1.05rem;
+  text-align: center;
+  font-size: 0.58rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+@keyframes pop {
+  from { opacity: 0; transform: scale(0.4) translateY(6px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ball { animation: none; }
+}
+
+.generate {
+  width: 100%;
+  margin-top: 1.5rem;
+  padding: 1rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+  font-family: inherit;
+  color: var(--accent-ink);
+  background: var(--accent);
+  border: 0;
+  border-radius: 12px;
+  cursor: pointer;
+  min-height: 3.25rem;
+}
+
+.generate:disabled { opacity: 0.55; cursor: default; }
+.generate:active:not(:disabled) { transform: translateY(1px); }
+
+.readout {
+  margin: 0.9rem 0 0;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.82rem;
+  min-height: 1.2em;
+}
+
+/* Panels */
+
+.panel {
+  margin-top: 1rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+details + details { border-top: 1px solid var(--line); }
+
+summary {
+  padding: 1rem 1.25rem;
+  cursor: pointer;
+  font-weight: 550;
+  font-size: 0.95rem;
+}
+
+summary::marker { color: var(--muted); }
+
+.prose {
+  padding: 0 1.25rem 1.25rem;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.prose p { margin: 0 0 0.8rem; }
+.prose p:last-child { margin-bottom: 0; }
+.prose strong { color: var(--text); }
+.prose a { color: var(--accent); }
+
+.prose code {
+  font-size: 0.85em;
+  padding: 0.1em 0.35em;
+  background: var(--bg);
+  border-radius: 4px;
+}
+
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem 0.5rem;
+}
+
+.panel-head h2 { margin: 0; font-size: 0.95rem; }
+
+.link {
+  background: none;
+  border: 0;
+  color: var(--accent);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 0.25rem;
+}
+
+.history {
+  margin: 0;
+  padding: 0 1.25rem 1rem;
+  list-style: none;
+}
+
+.history li {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.55rem 0;
+  border-top: 1px solid var(--line);
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.history .line { letter-spacing: 0.02em; }
+.history .pb { color: var(--muted); font-size: 0.82rem; }
+
+/* Footer */
+
+footer {
+  margin-top: 2rem;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+footer p { margin: 0.3rem 0; }
+
+.offline {
+  color: var(--warn-ink);
+  background: var(--warn-bg);
+  border: 1px solid var(--warn-line);
+  border-radius: 8px;
+  padding: 0.4rem 0.7rem;
+  display: inline-block;
+}

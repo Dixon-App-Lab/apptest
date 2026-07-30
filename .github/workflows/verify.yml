@@ -1,0 +1,56 @@
+name: Verify
+
+# Runs the same browser check as `npm run verify` locally. It exists because
+# both bugs found in this app so far were invisible to source review and only
+# showed up when a real browser rendered the page.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # playwright-core bundles no browser of its own, so fetch one.
+      - name: Install Chromium
+        run: npx playwright-core install --with-deps chromium
+
+      # Server and check share a step: a background process started in one step
+      # is not guaranteed to survive into the next.
+      - name: Serve and verify
+        env:
+          SHOT_DIR: screenshots
+        run: |
+          mkdir -p screenshots
+          npm run serve &
+          server=$!
+          trap 'kill $server 2>/dev/null || true' EXIT
+
+          for _ in $(seq 1 30); do
+            curl -sf http://127.0.0.1:8765/ >/dev/null && break
+            sleep 1
+          done
+          curl -sf http://127.0.0.1:8765/ >/dev/null || { echo "server did not come up on :8765" >&2; exit 1; }
+
+          npm run verify
+
+      # Useful on failure, and a cheap way to eyeball the rendered app per commit.
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots
+          path: screenshots/
+          if-no-files-found: ignore
