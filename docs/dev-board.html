@@ -65,7 +65,10 @@
   </div>
 
   <div class="colm">
-    <h2>🗣️ Standup Log — session handoffs <span class="count">3</span></h2>
+    <h2>🗣️ Standup Log — session handoffs <span class="count">4</span></h2>
+
+    <div class="card"><span class="id">30 Jul 2026 (live)</span><span class="t">G1 done — the app is on the internet</span>
+      <div class="d"><b>Did:</b> owner enabled Pages (Source → GitHub Actions); re-ran the deploy, which went green and reported <code>https://antonydixon-lab.github.io/apptest/</code>. Owner confirmed it loads in a browser. G1 moved to Shipped and the Blocked column is now empty for the first time. Worth recording for the next session: the dev container's egress policy blocks <code>*.github.io</code> the same way it blocks the lotto sources, so the live site cannot be fetched from a session at all — deployment success has to be read from the Actions log, and anything about how the real site behaves has to come from the owner's browser or phone.<br><br><b>Blocked on:</b> nothing.<br><br><b>Next:</b> D1 — the data-source decision is now the only thing standing between the app and real draw data. B1 is a file swap once D1 lands. B3 (iPhone install) is independent and needs a device.</div></div>
 
     <div class="card"><span class="id">30 Jul 2026 (migration)</span><span class="t">Moved to a fresh public repo, <code>apptest</code>, with clean history</span>
       <div class="d"><b>Did:</b> copied the working tree from <code>test-</code> at <code>main</code> into the new <code>antonydixon-lab/apptest</code> and committed it as a single commit — no history inherited, the old <code>.git</code> discarded. The move was about author metadata, not file contents: <code>test-</code>'s one commit carried the owner's real email in its author field, and that cannot be corrected in place without rewriting history, which is the wrong tool for a repo about to go public. File contents were already clean; confirmed with a tree-wide grep for the address before committing, and the commit author here is <code>Claude &lt;noreply@anthropic.com&gt;</code>. Verification harness re-run against the copy — all checks pass. Straight migration, no feature work. Two of G1's three steps (rename, make public) are satisfied by the new repo existing, so G1 is down to Pages alone.<br><br><b>Blocked on:</b> G1 — the Pages source still has to be set to GitHub Actions by hand.<br><br><b>Next:</b> unchanged — D1, then B1. <code>test-</code> is the owner's to delete or archive.</div></div>
@@ -86,15 +89,11 @@
   </div>
 
   <div class="colm">
-    <h2 class="blocked">⛔ Blocked — needs your GO <span class="count">1</span></h2>
+    <h2 class="blocked">⛔ Blocked — needs your GO <span class="count">0</span></h2>
 
-    <div class="card"><span class="id">G1</span><span class="t">One settings visit: enable Pages</span>
-      <div class="d">Was three steps; the first two are <b>done</b> — not by editing <code>test-</code>'s settings but by migrating to a fresh repo that is already named <code>apptest</code> and already public (see the migration entry in the standup log). What's left is UI-only and can't be done from a session:<br><br>
-      <b>Enable Pages</b> — Settings → Pages → Source → <b>GitHub Actions</b>. No save button; it applies on selection.<br><br>
-      <code>.github/workflows/deploy.yml</code> is already committed and fires on push to <code>main</code>, so the deploy runs as soon as the source is set. Live URL becomes <code>https://antonydixon-lab.github.io/apptest/</code>.<br><br>
-      <s>1. Rename → <code>apptest</code></s> — done via the migration; D2 satisfied.<br>
-      <s>2. Make public</s> — done; <code>apptest</code> was created public. Pages does not work on private repos on the Free plan. Scanned for secrets: none.</div>
-      <span class="tag gate">PO gate: set the Pages source, then say "done"</span></div>
+    <!--
+      Nothing is blocked on the owner right now. G1 shipped 30 Jul 2026.
+    -->
 
     <!--
       Items that are scoped and ready, but need an explicit product-owner
@@ -147,7 +146,10 @@
   </div>
 
   <div class="colm">
-    <h2 class="donec">✅ Shipped <span class="count">4</span></h2>
+    <h2 class="donec">✅ Shipped <span class="count">5</span></h2>
+
+    <div class="card"><span class="id">G1</span><span class="t">Live on GitHub Pages</span>
+      <div class="d">The three original steps landed as: renamed and made public by migrating to a fresh <code>apptest</code> repo, then Pages source set to GitHub Actions by hand. Deploy run went green — <code>Reported success!</code>, environment url <code>https://antonydixon-lab.github.io/apptest/</code> — and the owner confirmed it loads in a browser. Note the deploy's first run failed with <code>Get Pages site failed</code>; that is what the workflow does before Pages is enabled, not a fault, and a re-run after enabling was green. <b>Shipped 30 Jul 2026.</b></div></div>
 
     <div class="card"><span class="id">D2</span><span class="t">Decided: rename the repo to <code>apptest</code></span>
       <div class="d">Settled while <code>test-</code> still had no installs pointing at it, which is the only cheap moment to do it — a rename after the PWA is on a phone leaves the installed app aimed at a dead URL. Also drops the awkward trailing hyphen from the Pages URL. Execution is in G1. <b>Decided 30 Jul 2026.</b></div></div>
