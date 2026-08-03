@@ -55,7 +55,10 @@
 <div class="board">
 
   <div class="colm">
-    <h2>📥 Feedback Inbox — raw, pre-triage <span class="count">2</span></h2>
+    <h2>📥 Feedback Inbox — raw, pre-triage <span class="count">3</span></h2>
+
+    <div class="card"><span class="t">3 Aug 2026 — repo moved to an organisation</span>
+      <div class="d">Every GitHub API response now reports the repo as <code>Dixon-App-Lab/apptest</code> (owner type Organization), acting user <code>antdnz</code>. Not done from a session — noticed in API output. <br><br>Consequences if intentional: the Pages URL becomes <code>https://dixon-app-lab.github.io/apptest/</code>, the PWA installed on the owner's phone still points at the old one and may be dead, and <code>CLAUDE.md</code> plus this board still hardcode the old address. <i>Awaiting owner confirmation before rewriting the docs.</i></div></div>
 
     <div class="card"><span class="t">30 Jul 2026 — the original ask</span>
       <div class="d">"project description: lotto number generator. platform PWA, will test on Android first. user req: on demand produce a lotto draw I could use but avoid number combinations that have already won, using publicly avail info"<br><br><i>triaged → shipped as the v1 app; the real-data half became B1/D1.</i></div></div>
@@ -65,7 +68,10 @@
   </div>
 
   <div class="colm">
-    <h2>🗣️ Standup Log — session handoffs <span class="count">6</span></h2>
+    <h2>🗣️ Standup Log — session handoffs <span class="count">7</span></h2>
+
+    <div class="card"><span class="id">3 Aug 2026 (later)</span><span class="t">D1 settled — real draw history is reachable and its shape is known</span>
+      <div class="d"><b>Did:</b> built a one-off recon workflow to survey lottoresults.co.nz, because the dev container is refused at the proxy and a session cannot reach it. Three runs. It found the archive (<code>/lotto/</code>, monthly pages, <code>/lotto/archive</code>), confirmed each page carries six main numbers, bonus ball, Powerball and Strike inline, and confirmed from the site's own copy that the game is 6-from-40 with a 1–10 Powerball — the assumption CLAUDE.md says not to take from training data. <code>robots.txt</code> disallows nothing.<br><br>Latest draw is <b>2608</b>, so real history is ~2,600 draws against the synthetic 4,069. That makes the excluded share smaller, not larger — the honesty panel's argument gets stronger. The app reads these counts from the data, so no arithmetic needs changing by hand.<br><br><b>Blocked on:</b> nothing, though the org transfer below needs confirming.<br><br><b>Next:</b> B1 — write the fetcher, emit <code>data/draws.json</code>, set <code>meta.synthetic</code> false. Open question for the owner: the fetcher has to write the dataset into the repo itself, since a session cannot download build artifacts.</div></div>
 
     <div class="card"><span class="id">3 Aug 2026</span><span class="t">B3 shipped — iPhone install and offline both confirmed</span>
       <div class="d"><b>Did:</b> owner tested the live app on a real iPhone. Add to Home Screen works, iOS offered a "launch as web app" action, standalone display and layout are correct in both orientations, and Airplane Mode confirmed the offline path — notice fires in Safari, and the home-screen app launches and runs with no network. B3 shipped. No code changed in the process: nothing was broken. Two learnings recorded on the B3 card — a predicted safe-area clipping bug that does not exist, and that iOS needed no <code>apple-mobile-web-app-capable</code> meta because the manifest's <code>display</code> sufficed.<br><br>That closes every build item that does not depend on real data. v1 is done: installable, offline, honest about its dataset, live, and verified on both Android criteria and a real iPhone.<br><br><b>Blocked on:</b> nothing.<br><br><b>Next:</b> D1 is the only open thread. Owner likes <code>lottoresults.co.nz/tools/lotto/number-analysis</code> as a source. Unknown from a session — the dev container's egress policy blocks it, so what the page actually offers (file download, HTML table, per-number stats) has to come from the owner or from a fetch running in Actions, and that shape decides whether B1 is a converter or a scraper.</div></div>
@@ -111,9 +117,12 @@
   <div class="colm">
     <h2>📋 Backlog — review &amp; prioritise <span class="count">2</span></h2>
 
-    <div class="card"><span class="id">B1</span><span class="t">Swap in real NZ Lotto history</span>
-      <div class="d">Replace <code>data/draws.json</code> with real draws and set <code>meta.synthetic</code> to <code>false</code>, which drops the warning banner automatically. No app code changes — the schema is the contract. Depends on D1.</div>
-      <span class="tag small">Small once D1 is settled</span></div>
+    <div class="card"><span class="id">B1</span><span class="t">Swap in real NZ Lotto history — source confirmed, ready to build</span>
+      <div class="d">Replace <code>data/draws.json</code> with real draws and set <code>meta.synthetic</code> to <code>false</code>, which drops the warning banner automatically. Still no app code changes — the schema is the contract.<br><br>
+      <b>Shape confirmed by recon.</b> Each draw renders as: six main numbers ascending, then the bonus ball, then the Powerball, then four Strike numbers. Draw 2608 (Sat 01 Aug 2026) is <code>8 14 15 24 26 30 | 7 | 4 | 30 26 8 24</code>. The Strike numbers are always a subset of the six main numbers, which gives the parser a free self-check — if Strike is not a subset, the parse is wrong.<br><br>
+      <b>Only the first three fields matter here.</b> Fresh Draw needs the six main numbers and the Powerball. Bonus ball and Strike are dropped: the exclusion set is keyed on six-number combinations via <code>canonical()</code>, and nothing else enters it.<br><br>
+      <b>Route:</b> <code>/lotto/</code> and each <code>/lotto/&lt;month&gt;-&lt;year&gt;</code> page carry full draw data inline, so the fetch is ~470 monthly pages rather than ~2,600 per-draw ones. <code>/lotto/archive</code> is the index back through history.</div>
+      <span class="tag small">Ready to build</span></div>
 
     <div class="card"><span class="id">B2</span><span class="t">Keep the dataset current after each draw</span>
       <div class="d">Draws are Wed/Sat. Options: manual re-export, or a scheduled GitHub Action that fetches and commits (runners have open network, unlike the dev container). Only worth doing once the data is real.</div>
@@ -131,9 +140,9 @@
   <div class="colm">
     <h2 class="next">⏭ Decisions pending (yours) <span class="count">1</span></h2>
 
-    <div class="card"><span class="id">D1</span><span class="t">Where real draw history comes from</span>
-      <div class="d">There is <b>no official public MyLotto API</b> — checked, nothing documented. That leaves a CSV export from an aggregator (lotteryresults.co.nz has one), scraping a third-party site, or asking Lotto NZ directly. Scraping is the only fully automatic option and is the most ToS-grey. Your call on which is acceptable for an R&amp;D toy.</div>
-      <span class="tag decision">Decide</span></div>
+    <div class="card"><span class="id">D3</span><span class="t">How much history to take, and the ToS question</span>
+      <div class="d">D1 settled the source. Two things still sit with the owner. <b>Scale:</b> latest draw is 2608, so a full history is ~2,600 draws — reachable as ~470 monthly pages rather than 2,600 individual ones. Owner has said "best case figure a path to all draw history". <b>Rights:</b> <code>robots.txt</code> permits it, but the site footer reads "2023© Lotto Logic LTD., All Rights Reserved" and links terms and conditions that have not been read. Draw results are facts and facts are generally not copyrightable, though a compiled database can attract rights of its own in some jurisdictions. Owner has said a fun app, not a masters, and to proceed. Recorded here so the tradeoff is visible rather than assumed.</div>
+      <span class="tag decision">Noted — proceeding</span></div>
 
     <!--
       Things that need a yes/no or a judgement call, not a build — kept
@@ -145,7 +154,13 @@
   </div>
 
   <div class="colm">
-    <h2 class="donec">✅ Shipped <span class="count">6</span></h2>
+    <h2 class="donec">✅ Shipped <span class="count">7</span></h2>
+
+    <div class="card"><span class="id">D1</span><span class="t">Decided: real draw history comes from lottoresults.co.nz</span>
+      <div class="d">Owner's pick, and the only NZ source found. Settled by a one-off recon workflow rather than by argument, because the dev container cannot reach the site at all.<br><br>
+      <b>What the recon established.</b> The <code>/tools/</code> pages are aggregate statistics — frequency, pairs, triplets, recency — and none of that can reconstruct which six numbers fell together, so none of it is usable. The real archive is elsewhere: <code>/lotto/</code>, monthly pages, and <code>/lotto/archive</code>, all carrying full per-draw data inline. <code>robots.txt</code> is <code>User-agent: *</code> with no <code>Disallow</code> — nothing is off limits.<br><br>
+      <b>The game's own parameters, from the source rather than from memory.</b> The site states Lotto is "a 6 from 40 game" with the Powerball "drawn from a separate pot of ten balls", numbered 1–10, drawn Wednesdays and Saturdays. That independently confirms <code>mainPool 40</code>, <code>mainCount 6</code>, <code>powerballPool 10</code> in the data contract — the exact assumption CLAUDE.md warns not to take from training data. It was right to be checked, and it holds.<br><br>
+      <b>Two false starts worth keeping.</b> The site is http-only, so the first run assumed https and got <code>TypeError: fetch failed</code> on every request while still reporting success. And the first pass scored pages with a regex that called the Keno page a likely source of six-number combinations — Keno draws 20 numbers, so any six in a row match — while missing the real Lotto page. Scoring was replaced with printing the page text and reading it. <b>Decided 3 Aug 2026.</b></div></div>
 
     <div class="card"><span class="id">B3</span><span class="t">iPhone install and offline confirmed</span>
       <div class="d">Tested on a real iPhone against the live Pages deployment. Add to Home Screen works and iOS offered a "launch as web app" action afterwards, so the manifest is parsed and it registers as an app rather than a bookmark. Standalone display correct, layout holds portrait and landscape. Offline verified in Airplane Mode: the offline notice fires in Safari, and the home-screen app launches and works with no network — so the service worker installs and the cached dataset is reachable inside the standalone context, which was the open question.<br><br>

@@ -1,7 +1,8 @@
 name: Recon data source (D1)
 
-# One-off survey of lottoresults.co.nz to settle D1: does it publish full
-# past-draw history, or only the aggregate statistics the /tools/ pages show?
+# One-off survey of lottoresults.co.nz that settled D1. Findings go to the
+# job log, not an artifact: a session cannot download artifacts (github.com is
+# blocked by the same egress policy as the site) but it can read logs.
 #
 # Manual trigger only, on purpose. This is not a scraper and must not become
 # one on a schedule -- automated collection is the decision D1 is still open
@@ -30,14 +31,3 @@ jobs:
 
       - name: Survey the site
         run: node tools/recon-datasource.mjs
-
-      # The fetched HTML is evidence to read, not content to keep. It goes in
-      # an artifact and is never committed.
-      - name: Upload findings
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: recon
-          path: recon-out/
-          retention-days: 7
-          if-no-files-found: warn
