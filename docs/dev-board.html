@@ -65,10 +65,10 @@
   </div>
 
   <div class="colm">
-    <h2>🗣️ Standup Log — session handoffs <span class="count">5</span></h2>
+    <h2>🗣️ Standup Log — session handoffs <span class="count">6</span></h2>
 
-    <div class="card"><span class="id">3 Aug 2026</span><span class="t">iPhone install works; offline leg still to check</span>
-      <div class="d"><b>Did:</b> owner installed the live app on an iPhone via Safari → Add to Home Screen. iOS offered a "launch as web app" action straight after, so the manifest was parsed and it registered as an app rather than a bookmark. Standalone display correct, layout fine portrait and landscape. A predicted defect did <i>not</i> materialise: <code>viewport-fit=cover</code> with no <code>env(safe-area-inset-*)</code> rules looked certain to clip the header under the status bar, and does not. No code changed — nothing was broken.<br><br><b>Blocked on:</b> nothing.<br><br><b>Next:</b> finish B3 with an Airplane Mode check — launch online once first, since the standalone app may hold storage separately from Safari and the service worker has to install in that context before offline can work. Then D1, which now has a candidate source the owner likes: <code>lottoresults.co.nz/tools/lotto/number-analysis</code>.</div></div>
+    <div class="card"><span class="id">3 Aug 2026</span><span class="t">B3 shipped — iPhone install and offline both confirmed</span>
+      <div class="d"><b>Did:</b> owner tested the live app on a real iPhone. Add to Home Screen works, iOS offered a "launch as web app" action, standalone display and layout are correct in both orientations, and Airplane Mode confirmed the offline path — notice fires in Safari, and the home-screen app launches and runs with no network. B3 shipped. No code changed in the process: nothing was broken. Two learnings recorded on the B3 card — a predicted safe-area clipping bug that does not exist, and that iOS needed no <code>apple-mobile-web-app-capable</code> meta because the manifest's <code>display</code> sufficed.<br><br>That closes every build item that does not depend on real data. v1 is done: installable, offline, honest about its dataset, live, and verified on both Android criteria and a real iPhone.<br><br><b>Blocked on:</b> nothing.<br><br><b>Next:</b> D1 is the only open thread. Owner likes <code>lottoresults.co.nz/tools/lotto/number-analysis</code> as a source. Unknown from a session — the dev container's egress policy blocks it, so what the page actually offers (file download, HTML table, per-number stats) has to come from the owner or from a fetch running in Actions, and that shape decides whether B1 is a converter or a scraper.</div></div>
 
     <div class="card"><span class="id">30 Jul 2026 (live)</span><span class="t">G1 done — the app is on the internet</span>
       <div class="d"><b>Did:</b> owner enabled Pages (Source → GitHub Actions); re-ran the deploy, which went green and reported <code>https://antonydixon-lab.github.io/apptest/</code>. Owner confirmed it loads in a browser. G1 moved to Shipped and the Blocked column is now empty for the first time. Worth recording for the next session: the dev container's egress policy blocks <code>*.github.io</code> the same way it blocks the lotto sources, so the live site cannot be fetched from a session at all — deployment success has to be read from the Actions log, and anything about how the real site behaves has to come from the owner's browser or phone.<br><br><b>Blocked on:</b> nothing.<br><br><b>Next:</b> D1 — the data-source decision is now the only thing standing between the app and real draw data. B1 is a file swap once D1 lands. B3 (iPhone install) is independent and needs a device.</div></div>
@@ -109,7 +109,7 @@
   </div>
 
   <div class="colm">
-    <h2>📋 Backlog — review &amp; prioritise <span class="count">3</span></h2>
+    <h2>📋 Backlog — review &amp; prioritise <span class="count">2</span></h2>
 
     <div class="card"><span class="id">B1</span><span class="t">Swap in real NZ Lotto history</span>
       <div class="d">Replace <code>data/draws.json</code> with real draws and set <code>meta.synthetic</code> to <code>false</code>, which drops the warning banner automatically. No app code changes — the schema is the contract. Depends on D1.</div>
@@ -118,12 +118,6 @@
     <div class="card"><span class="id">B2</span><span class="t">Keep the dataset current after each draw</span>
       <div class="d">Draws are Wed/Sat. Options: manual re-export, or a scheduled GitHub Action that fetches and commits (runners have open network, unlike the dev container). Only worth doing once the data is real.</div>
       <span class="tag small">Small</span></div>
-
-    <div class="card"><span class="id">B3</span><span class="t">Check install behaviour on iPhone — offline leg outstanding</span>
-      <div class="d"><b>Confirmed on a real iPhone:</b> Add to Home Screen works, and Safari offered an explicit "launch as web app" action afterwards — so iOS parsed the manifest and treated it as an app, not a bookmark. Standalone display is correct and the layout holds in both portrait and landscape.<br><br>
-      <b>Still untested:</b> the offline leg — service worker installing inside the standalone app's own storage, cached generation with the network off, and whether <code>navigator.onLine</code> (which drives the offline notice at <code>app.js:212</code>) reports correctly in standalone on iOS. That last one is the genuinely unknown bit.<br><br>
-      <b>Prediction that failed:</b> <code>viewport-fit=cover</code> is set with no <code>env(safe-area-inset-*)</code> rules in <code>styles.css</code>, which looked like it should clip the header under the status bar in standalone. It does not — <code>.head</code>'s 2rem top padding clears it in practice. Left alone deliberately. Reading the CSS suggested a bug that running it disproved, which is the same lesson as the two bugs in the v1 session, pointing the other way.</div>
-      <span class="tag small">Small — one Airplane Mode check left</span></div>
 
     <!--
       Triaged, numbered, ready to pick up. Numbered IDs (B1, B2, …) make
@@ -151,7 +145,11 @@
   </div>
 
   <div class="colm">
-    <h2 class="donec">✅ Shipped <span class="count">5</span></h2>
+    <h2 class="donec">✅ Shipped <span class="count">6</span></h2>
+
+    <div class="card"><span class="id">B3</span><span class="t">iPhone install and offline confirmed</span>
+      <div class="d">Tested on a real iPhone against the live Pages deployment. Add to Home Screen works and iOS offered a "launch as web app" action afterwards, so the manifest is parsed and it registers as an app rather than a bookmark. Standalone display correct, layout holds portrait and landscape. Offline verified in Airplane Mode: the offline notice fires in Safari, and the home-screen app launches and works with no network — so the service worker installs and the cached dataset is reachable inside the standalone context, which was the open question.<br><br>
+      Two things learned. <b>A predicted defect did not exist:</b> <code>viewport-fit=cover</code> is set with no <code>env(safe-area-inset-*)</code> rules in <code>styles.css</code>, which looked certain to clip the header under the status bar in standalone, and does not — <code>.head</code>'s 2rem top padding clears it. Deliberately left alone. <b>And iOS needed no special-casing:</b> no <code>apple-mobile-web-app-capable</code> meta was required for standalone; the manifest's <code>display</code> was enough. <b>Shipped 3 Aug 2026.</b></div></div>
 
     <div class="card"><span class="id">G1</span><span class="t">Live on GitHub Pages</span>
       <div class="d">The three original steps landed as: renamed and made public by migrating to a fresh <code>apptest</code> repo, then Pages source set to GitHub Actions by hand. Deploy run went green — <code>Reported success!</code>, environment url <code>https://antonydixon-lab.github.io/apptest/</code> — and the owner confirmed it loads in a browser. Note the deploy's first run failed with <code>Get Pages site failed</code>; that is what the workflow does before Pages is enabled, not a fault, and a re-run after enabling was green. <b>Shipped 30 Jul 2026.</b></div></div>
