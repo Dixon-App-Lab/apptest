@@ -5,8 +5,12 @@
 **Owner:** Antony Dixon (non-coder — product decisions his, engineering
 decisions yours). Contact via the GitHub account that owns this repo — the
 repo is public, so no email address here.
-**Live:** `https://antonydixon-lab.github.io/apptest/` once G1 is done. Pages
-is not enabled yet.
+**Repo:** `Dixon-App-Lab/apptest`. Moved from the personal account to the org
+on 3 Aug 2026 to get onto a paid plan. The old `antonydixon-lab/apptest`
+redirects, so stale links still resolve, but the org is canonical.
+**Live:** `https://dixon-app-lab.github.io/apptest/` — deployed and confirmed
+working on desktop and iPhone. The URL changed with the org move; anything
+installed from the old address points at a dead origin and needs re-adding.
 
 ## Mission
 

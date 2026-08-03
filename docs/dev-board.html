@@ -58,7 +58,7 @@
     <h2>📥 Feedback Inbox — raw, pre-triage <span class="count">3</span></h2>
 
     <div class="card"><span class="t">3 Aug 2026 — repo moved to an organisation</span>
-      <div class="d">Every GitHub API response now reports the repo as <code>Dixon-App-Lab/apptest</code> (owner type Organization), acting user <code>antdnz</code>. Not done from a session — noticed in API output. <br><br>Consequences if intentional: the Pages URL becomes <code>https://dixon-app-lab.github.io/apptest/</code>, the PWA installed on the owner's phone still points at the old one and may be dead, and <code>CLAUDE.md</code> plus this board still hardcode the old address. <i>Awaiting owner confirmation before rewriting the docs.</i></div></div>
+      <div class="d">Noticed in API output, not done from a session: the repo now reports as <code>Dixon-App-Lab/apptest</code> (owner type Organization), acting user <code>antdnz</code>. <b>Owner confirmed</b> — deliberate, to get onto a paid GitHub plan.<br><br><i>triaged → docs updated to the new URL; Pages re-verified; the installed-PWA consequence became B5.</i></div></div>
 
     <div class="card"><span class="t">30 Jul 2026 — the original ask</span>
       <div class="d">"project description: lotto number generator. platform PWA, will test on Android first. user req: on demand produce a lotto draw I could use but avoid number combinations that have already won, using publicly avail info"<br><br><i>triaged → shipped as the v1 app; the real-data half became B1/D1.</i></div></div>
@@ -68,7 +68,10 @@
   </div>
 
   <div class="colm">
-    <h2>🗣️ Standup Log — session handoffs <span class="count">7</span></h2>
+    <h2>🗣️ Standup Log — session handoffs <span class="count">8</span></h2>
+
+    <div class="card"><span class="id">3 Aug 2026 (org move)</span><span class="t">Repo is now Dixon-App-Lab/apptest; live URL changed</span>
+      <div class="d"><b>Did:</b> owner moved the repo to the <code>Dixon-App-Lab</code> org to get onto a paid GitHub plan. Confirmed Pages survived the move — four deploys green since, and the latest reports <code>Evaluated environment url: https://dixon-app-lab.github.io/apptest/</code>. Updated <code>CLAUDE.md</code> to the new repo and URL. Left the older standup entries quoting the old address alone: they record what was true when written, and this column is append-only.<br><br>Nothing in the app needed changing, which is the point worth noting — <code>manifest.webmanifest</code> uses relative <code>start_url</code> and <code>scope</code> (<code>./</code>) and <code>sw.js</code> caches relative paths, so the whole app moved origin without a single edit. Had any of those been absolute, the move would have broken the installed app outright.<br><br><b>Blocked on:</b> nothing.<br><br><b>Next:</b> B1, pending the owner's word on the fetcher writing <code>data/draws.json</code> into the repo. B5 added for re-adding the phone icon from the new URL.</div></div>
 
     <div class="card"><span class="id">3 Aug 2026 (later)</span><span class="t">D1 settled — real draw history is reachable and its shape is known</span>
       <div class="d"><b>Did:</b> built a one-off recon workflow to survey lottoresults.co.nz, because the dev container is refused at the proxy and a session cannot reach it. Three runs. It found the archive (<code>/lotto/</code>, monthly pages, <code>/lotto/archive</code>), confirmed each page carries six main numbers, bonus ball, Powerball and Strike inline, and confirmed from the site's own copy that the game is 6-from-40 with a 1–10 Powerball — the assumption CLAUDE.md says not to take from training data. <code>robots.txt</code> disallows nothing.<br><br>Latest draw is <b>2608</b>, so real history is ~2,600 draws against the synthetic 4,069. That makes the excluded share smaller, not larger — the honesty panel's argument gets stronger. The app reads these counts from the data, so no arithmetic needs changing by hand.<br><br><b>Blocked on:</b> nothing, though the org transfer below needs confirming.<br><br><b>Next:</b> B1 — write the fetcher, emit <code>data/draws.json</code>, set <code>meta.synthetic</code> false. Open question for the owner: the fetcher has to write the dataset into the repo itself, since a session cannot download build artifacts.</div></div>
@@ -115,7 +118,11 @@
   </div>
 
   <div class="colm">
-    <h2>📋 Backlog — review &amp; prioritise <span class="count">2</span></h2>
+    <h2>📋 Backlog — review &amp; prioritise <span class="count">3</span></h2>
+
+    <div class="card"><span class="id">B5</span><span class="t">Re-add the PWA from the new URL</span>
+      <div class="d">The org move changed the origin from <code>antonydixon-lab.github.io</code> to <code>dixon-app-lab.github.io</code>. A PWA's <code>start_url</code> and <code>scope</code> resolve against wherever it was installed from, so the icon added to the phone on 3 Aug points at the old origin. GitHub redirects the repo, but an installed app holding a cached shell under the old origin is a different matter — worth confirming rather than assuming either way.<br><br>Fix if broken: delete the home-screen icon and re-add from <code>https://dixon-app-lab.github.io/apptest/</code>. This is exactly the risk D2 flagged when it argued for renaming early, which turned out to be right for a reason nobody predicted. Owner-side; cannot be checked from a session.</div>
+      <span class="tag small">Small — needs the phone</span></div>
 
     <div class="card"><span class="id">B1</span><span class="t">Swap in real NZ Lotto history — source confirmed, ready to build</span>
       <div class="d">Replace <code>data/draws.json</code> with real draws and set <code>meta.synthetic</code> to <code>false</code>, which drops the warning banner automatically. Still no app code changes — the schema is the contract.<br><br>
