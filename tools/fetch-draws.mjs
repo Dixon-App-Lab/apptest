@@ -66,8 +66,13 @@ const paths = (html, re) =>
 
 // One rendered result block -> a draw, or null with a reason.
 function parseBlock(block) {
+  // The jackpot is not always an amount: "Jackpot: Rollover" and "Jackpot:
+  // Must Be Won" both occur. An earlier version skipped non-digits to find a
+  // number, which on "Jackpot: Rollover 5 12 19 …" ate the first main number
+  // and shifted every field left. Consume words and a $amount explicitly, and
+  // never a bare number -- a bare number after "Jackpot:" is a ball.
   const head = block.match(
-    /^Lotto Result for [A-Za-z]+,\s*(\d{1,2})\s+([A-Za-z]+),?\s+(\d{4})\s*Draw Number:\s*([\d,]+)\s*(?:Jackpot:[^\d]*[\d,]+)?\s*/i,
+    /^Lotto Result for [A-Za-z]+,\s*(\d{1,2})\s+([A-Za-z]+),?\s+(\d{4})\s*Draw Number:\s*([\d,]+)\s*(?:Jackpot:\s*(?:[A-Za-z][A-Za-z ]*)?(?:\$[\d,]+)?\s*)?/i,
   );
   if (!head) return { error: 'no header' };
 
@@ -163,11 +168,15 @@ console.log(`fetching ${todo.length} month page(s)${MAX_MONTHS ? ' (SMOKE RUN �
 const byDraw = new Map();
 const shapes = new Map();
 const problems = [];
+const deadMonths = [];
 
 for (const [i, path] of todo.entries()) {
   const html = await get(`${ORIGIN}${path}`);
   if (!html) {
-    problems.push(`fetch failed: ${path}`);
+    // A month the site links but does not serve. That is missing draws, not a
+    // parse fault, so it is reported separately and does not count toward the
+    // failure gate -- otherwise a few dead months could mask a real parse bug.
+    deadMonths.push(path);
     continue;
   }
 
@@ -211,6 +220,7 @@ console.log(`http requests    : ${fetches}`);
 console.log(`token shapes     : ${[...shapes.entries()].sort((a, b) => a[0] - b[0]).map(([k, v]) => `${k}->${v}`).join('  ')}`);
 console.log(`without powerball: ${draws.filter((d) => d.powerball === null).length}`);
 console.log(`problems         : ${problems.length}`);
+console.log(`unreachable months: ${deadMonths.length}${deadMonths.length ? ` — ${deadMonths.join(', ')}` : ''}`);
 problems.slice(0, 25).forEach((p) => console.log(`  - ${p}`));
 if (problems.length > 25) console.log(`  ... and ${problems.length - 25} more`);
 
