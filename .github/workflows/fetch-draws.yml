@@ -17,6 +17,10 @@ on:
         description: 'Month pages to fetch (from newest). 0 = all. Non-zero is a smoke run and writes nothing.'
         required: true
         default: '6'
+      debug_month:
+        description: 'Optional: dump one month page as text and stop, e.g. /lotto/september-2022'
+        required: false
+        default: ''
 
 jobs:
   fetch:
@@ -33,12 +37,13 @@ jobs:
       - name: Build the dataset
         env:
           MAX_MONTHS: ${{ inputs.max_months }}
+          DEBUG_MONTH: ${{ inputs.debug_month }}
         run: node tools/fetch-draws.mjs
 
       # Verify before committing: a dataset that breaks the app is worse than
       # no dataset, and the harness drives a real browser against it.
       - name: Verify against the new data
-        if: inputs.max_months == '0'
+        if: inputs.max_months == '0' && inputs.debug_month == ''
         run: |
           npm ci
           npx playwright-core install --with-deps chromium
@@ -49,7 +54,7 @@ jobs:
           npm run verify
 
       - name: Commit
-        if: inputs.max_months == '0'
+        if: inputs.max_months == '0' && inputs.debug_month == ''
         run: |
           if git diff --quiet -- data/draws.json sw.js; then
             echo "No change to commit."

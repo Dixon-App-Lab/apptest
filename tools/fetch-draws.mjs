@@ -129,11 +129,32 @@ for (const seed of [`${ORIGIN}/lotto/archive`, `${ORIGIN}/lotto/`]) {
   }
 }
 
-const monthList = [...months].sort();
+// Sort chronologically, not alphabetically. Sorting the paths as strings put
+// every September together, so the first smoke run sampled six Septembers and
+// called them "the newest six".
+const monthKey = (p) => {
+  const m = p.match(/\/lotto\/([a-z]+)-(\d{4})$/i);
+  return m ? Number(m[2]) * 12 + MONTHS.indexOf(m[1].toLowerCase()) : -1;
+};
+const monthList = [...months].sort((a, b) => monthKey(a) - monthKey(b));
 console.log(`month pages discovered: ${monthList.length}`);
 if (!monthList.length) {
   console.error('No month pages found -- the archive layout changed. Not writing anything.');
   process.exit(1);
+}
+
+// Dump one month's rendered text and stop. For diagnosing a parse against what
+// the page actually says rather than against what it was assumed to say.
+if (process.env.DEBUG_MONTH) {
+  const html = await get(`${ORIGIN}${process.env.DEBUG_MONTH}`);
+  if (!html) {
+    console.error('debug fetch failed');
+    process.exit(1);
+  }
+  const blocks = text(html).split(/(?=Lotto Result for )/).filter((b) => b.startsWith('Lotto Result for'));
+  console.log(`\n${blocks.length} result block(s) on ${process.env.DEBUG_MONTH}\n`);
+  blocks.forEach((b, n) => console.log(`--- block ${n} ---\n${b.slice(0, 420)}\n`));
+  process.exit(0);
 }
 
 const todo = MAX_MONTHS > 0 ? monthList.slice(-MAX_MONTHS) : monthList;
