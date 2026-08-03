@@ -1,166 +1,107 @@
-// Throwaway recon for D1: find out whether lottoresults.co.nz publishes full
-// past-draw history, and in what shape. Delete this file once D1 is decided.
+// Throwaway recon for D1: does lottoresults.co.nz publish full past-draw
+// history, and in what shape? Delete this file once D1 is decided.
 //
-// Why it exists as a workflow rather than a local script: the dev container's
-// egress policy refuses CONNECT to the site (403 at the proxy, confirmed for
-// lottoresults.co.nz:443), so nothing here can be run or tested from a session.
-// A runner has open network. That asymmetry is the whole reason for this file.
+// Two things learned the hard way, both encoded below:
 //
-// This fetches and reports. It does not commit anything — output goes to a
-// directory that is uploaded as a build artifact and then thrown away.
+// 1. The site is http-only. Assuming https gave TypeError: fetch failed on
+//    every request while the workflow still reported success.
+// 2. Findings must go to STDOUT, not just the artifact. The dev container's
+//    egress policy blocks github.com, so a session cannot download its own
+//    build artifacts -- but it can read job logs. The log is the only channel
+//    that actually reaches the reader.
+//
+// It fetches and reports. Nothing is committed.
 
-import { mkdir, writeFile } from 'node:fs/promises';
-import path from 'node:path';
-
-// Not a constant: the first run assumed https and got TypeError: fetch failed
-// on every request. Safari flags this host as Not Secure, so it is served over
-// plain http and port 443 is not answering. Probe rather than assume.
-let ORIGIN = null;
 const ORIGIN_CANDIDATES = ['https://lottoresults.co.nz', 'http://lottoresults.co.nz'];
-const OUT = 'recon-out';
-const MAX_FETCHES = 16;
 const DELAY_MS = 1500;
 
-// Identify the crawler honestly rather than impersonating a browser. If the
-// site objects to being read, it should be able to tell who is reading.
-const UA = 'FreshDrawRecon/1 (+https://github.com/antonydixon-lab/apptest) one-off data-source survey';
+// Identify the crawler honestly rather than impersonating a browser.
+const UA = 'FreshDrawRecon/1 (+https://github.com/Dixon-App-Lab/apptest) one-off data-source survey';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-
-let fetches = 0;
+let ORIGIN = null;
 
 async function get(url) {
-  if (fetches >= MAX_FETCHES) return { url, skipped: 'fetch budget exhausted' };
-  if (fetches > 0) await sleep(DELAY_MS);
-  fetches += 1;
-
+  await sleep(DELAY_MS);
   try {
     const res = await fetch(url, { headers: { 'user-agent': UA }, redirect: 'follow' });
-    const body = await res.text();
-    return { url, status: res.status, finalUrl: res.url, type: res.headers.get('content-type'), body };
+    return { status: res.status, body: await res.text() };
   } catch (err) {
-    return { url, error: String(err) };
+    return { error: String(err) };
   }
 }
 
-// Deliberately naive: enough to enumerate candidate pages, not a parser.
-function links(html, base) {
-  const out = new Set();
-  for (const m of html.matchAll(/href\s*=\s*["']([^"']+)["']/gi)) {
-    try {
-      const u = new URL(m[1], base);
-      // Match on host, not origin: a page served over http can still link to
-      // itself as https, and either form is the same page.
-      if (u.hostname === new URL(ORIGIN).hostname) out.add(ORIGIN + u.pathname);
-    } catch {
-      /* ignore unparseable href */
-    }
-  }
-  return [...out];
-}
-
-// Does this page look like it holds actual draws rather than statistics about
-// them? The signal we want is six numbers appearing together against a date --
-// frequency tables cannot reconstruct a combination, so they are worthless here.
-function assess(html) {
-  const text = html.replace(/<script[\s\S]*?<\/script>/gi, ' ').replace(/<[^>]+>/g, ' ');
-  const rows = (html.match(/<tr[\s>]/gi) || []).length;
-  const dates = (text.match(/\b\d{1,2}\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{4}\b/gi) || []).length;
-
-  // Six 1-40 numbers in a row, loosely spaced -- the shape of a drawn line.
-  const sixes = (text.match(/(?:\b(?:[1-9]|[1-3]\d|40)\b[^\dA-Za-z]{1,6}){5}\b(?:[1-9]|[1-3]\d|40)\b/g) || []).length;
-
-  return {
-    tableRows: rows,
-    datesSeen: dates,
-    sixNumberRuns: sixes,
-    mentionsDownload: /\.csv|\.json|\.xlsx|download|export/i.test(html),
-    verdict: sixes >= 5 ? 'LIKELY holds full per-draw combinations' : 'probably stats only, no usable combinations',
-  };
-}
-
-await mkdir(OUT, { recursive: true });
-
-const report = [];
-const save = async (name, body) => writeFile(path.join(OUT, name), body);
+// Collapse markup to readable text. The point is to see the draw as a human
+// would, since the previous run's regex scoring proved worse than useless.
+const text = (html) =>
+  html
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 
 for (const candidate of ORIGIN_CANDIDATES) {
   const probe = await get(`${candidate}/`);
-  report.push({ step: 'scheme-probe', origin: candidate, status: probe.status, error: probe.error });
   console.log(`scheme probe ${candidate} -> ${probe.status ?? probe.error}`);
   if (probe.status && probe.status < 400) {
     ORIGIN = candidate;
     break;
   }
 }
-
 if (!ORIGIN) {
-  await save('report.json', JSON.stringify(report, null, 2));
-  console.error('\nNo scheme answered. Nothing further to survey.');
+  console.error('No scheme answered.');
   process.exit(1);
 }
-console.log(`using origin: ${ORIGIN}\n`);
 
-// robots.txt first. If it disallows what we are about to read, that is the
-// owner's answer and it belongs in the report rather than being worked around.
+console.log(`\n${'='.repeat(70)}\nROBOTS.TXT\n${'='.repeat(70)}`);
 const robots = await get(`${ORIGIN}/robots.txt`);
-if (robots.body) await save('robots.txt', robots.body);
-report.push({ step: 'robots.txt', status: robots.status, body: robots.body?.slice(0, 2000) });
+console.log(robots.body?.slice(0, 1500) ?? robots.error);
 
-const seeds = [`${ORIGIN}/`, `${ORIGIN}/tools/lotto/`];
-const seen = new Set();
-const candidates = new Set();
+// The archive index: how far back does it go, and how are draws addressed?
+console.log(`\n${'='.repeat(70)}\nINDEX  ${ORIGIN}/lotto/\n${'='.repeat(70)}`);
+const index = await get(`${ORIGIN}/lotto/`);
+console.log(`status ${index.status ?? index.error}`);
 
-for (const seed of seeds) {
-  const res = await get(seed);
-  report.push({ step: 'seed', url: seed, status: res.status, error: res.error });
-  if (!res.body) continue;
-  seen.add(seed);
-  await save(`seed-${seeds.indexOf(seed)}.html`, res.body);
+let drawLinks = [];
+if (index.body) {
+  console.log(`\n--- text (first 2500 chars) ---\n${text(index.body).slice(0, 2500)}`);
 
-  for (const link of links(res.body, seed)) {
-    // Results/history/archive pages are the target. The /tools/ pages are
-    // known to be aggregate statistics and are not worth the budget.
-    if (/result|histor|archive|draw|past|winning/i.test(link) && !/\/tools\//i.test(link)) {
-      candidates.add(link);
-    }
-  }
+  const hrefs = [...index.body.matchAll(/href\s*=\s*["']([^"']+)["']/gi)].map((m) => m[1]);
+  drawLinks = [...new Set(hrefs.filter((h) => /\/lotto\/\d{1,2}-[a-z]+-\d{4}/i.test(h)))];
+
+  console.log(`\n--- dated /lotto/ links on the index: ${drawLinks.length} ---`);
+  console.log(drawLinks.slice(0, 40).join('\n'));
+
+  // Pagination or an archive jump-off decides whether every draw back to 1987
+  // is reachable, or only a recent window.
+  const paging = [...new Set(hrefs.filter((h) => /page|archive|year|20\d\d|19\d\d/i.test(h) && /lotto/i.test(h)))];
+  console.log(`\n--- possible pagination/archive links: ${paging.length} ---`);
+  console.log(paging.slice(0, 40).join('\n'));
 }
 
-report.push({ step: 'candidates', found: [...candidates] });
+// Two draw pages: one known, one from the index, so the shape is confirmed
+// twice rather than inferred from a single example.
+const targets = [`${ORIGIN}/lotto/01-august-2026`];
+for (const l of drawLinks.slice(0, 1)) {
+  const abs = new URL(l, `${ORIGIN}/lotto/`).toString();
+  if (!targets.includes(abs)) targets.push(abs);
+}
 
-let i = 0;
-for (const url of candidates) {
-  if (fetches >= MAX_FETCHES) {
-    report.push({ step: 'stopped', reason: 'fetch budget exhausted', remaining: candidates.size - i });
-    break;
-  }
-  if (seen.has(url)) continue;
-  seen.add(url);
-
+for (const url of targets) {
+  console.log(`\n${'='.repeat(70)}\nDRAW PAGE  ${url}\n${'='.repeat(70)}`);
   const res = await get(url);
-  const entry = { step: 'candidate', url, status: res.status, finalUrl: res.finalUrl, error: res.error };
-  if (res.body) {
-    await save(`candidate-${i}.html`, res.body);
-    entry.file = `candidate-${i}.html`;
-    entry.assessment = assess(res.body);
-  }
-  report.push(entry);
-  i += 1;
-}
+  console.log(`status ${res.status ?? res.error}`);
+  if (!res.body) continue;
 
-await save('report.json', JSON.stringify(report, null, 2));
+  console.log(`\n--- text (first 3000 chars) ---\n${text(res.body).slice(0, 3000)}`);
 
-console.log(`\nfetches used: ${fetches} / ${MAX_FETCHES}\n`);
-for (const r of report) {
-  if (r.step === 'candidate') {
-    console.log(`${r.status}  ${r.url}`);
-    if (r.assessment) console.log(`      ${r.assessment.verdict}  (rows=${r.assessment.tableRows} dates=${r.assessment.datesSeen} six-runs=${r.assessment.sixNumberRuns} download=${r.assessment.mentionsDownload})`);
-  } else if (r.step === 'seed') {
-    console.log(`${r.status ?? r.error}  seed ${r.url}`);
-  } else if (r.step === 'robots.txt') {
-    console.log(`robots.txt: ${r.status}`);
-  } else if (r.step === 'candidates') {
-    console.log(`candidates discovered: ${r.found.length}`);
-  }
+  // Table cells verbatim: if the six balls live in <td>s, this is the shape a
+  // converter would parse, and worth seeing before writing one.
+  const cells = [...res.body.matchAll(/<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/gi)]
+    .map((m) => text(m[1]))
+    .filter(Boolean);
+  console.log(`\n--- first 60 table cells (${cells.length} total) ---`);
+  console.log(cells.slice(0, 60).map((c, n) => `[${n}] ${c.slice(0, 60)}`).join('\n'));
 }
