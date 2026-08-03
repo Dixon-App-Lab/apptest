@@ -12,9 +12,13 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
-const ORIGIN = 'https://lottoresults.co.nz';
+// Not a constant: the first run assumed https and got TypeError: fetch failed
+// on every request. Safari flags this host as Not Secure, so it is served over
+// plain http and port 443 is not answering. Probe rather than assume.
+let ORIGIN = null;
+const ORIGIN_CANDIDATES = ['https://lottoresults.co.nz', 'http://lottoresults.co.nz'];
 const OUT = 'recon-out';
-const MAX_FETCHES = 14;
+const MAX_FETCHES = 16;
 const DELAY_MS = 1500;
 
 // Identify the crawler honestly rather than impersonating a browser. If the
@@ -45,7 +49,9 @@ function links(html, base) {
   for (const m of html.matchAll(/href\s*=\s*["']([^"']+)["']/gi)) {
     try {
       const u = new URL(m[1], base);
-      if (u.origin === ORIGIN) out.add(u.origin + u.pathname);
+      // Match on host, not origin: a page served over http can still link to
+      // itself as https, and either form is the same page.
+      if (u.hostname === new URL(ORIGIN).hostname) out.add(ORIGIN + u.pathname);
     } catch {
       /* ignore unparseable href */
     }
@@ -77,6 +83,23 @@ await mkdir(OUT, { recursive: true });
 
 const report = [];
 const save = async (name, body) => writeFile(path.join(OUT, name), body);
+
+for (const candidate of ORIGIN_CANDIDATES) {
+  const probe = await get(`${candidate}/`);
+  report.push({ step: 'scheme-probe', origin: candidate, status: probe.status, error: probe.error });
+  console.log(`scheme probe ${candidate} -> ${probe.status ?? probe.error}`);
+  if (probe.status && probe.status < 400) {
+    ORIGIN = candidate;
+    break;
+  }
+}
+
+if (!ORIGIN) {
+  await save('report.json', JSON.stringify(report, null, 2));
+  console.error('\nNo scheme answered. Nothing further to survey.');
+  process.exit(1);
+}
+console.log(`using origin: ${ORIGIN}\n`);
 
 // robots.txt first. If it disallows what we are about to read, that is the
 // owner's answer and it belongs in the report rather than being worked around.
