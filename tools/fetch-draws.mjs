@@ -219,7 +219,12 @@ for (const [i, path] of todo.entries()) {
     }
 
     shapes.set(d._tokens, (shapes.get(d._tokens) || 0) + 1);
-    byDraw.set(d.draw, { draw: d.draw, date: d.date, numbers: d.numbers, powerball: d.powerball });
+    // Key on date and combination, not draw number. The site renders a few
+    // 2006-era draws under a wrong draw number, and keying on draw number let
+    // those overwrite genuine draws -- draw 101 lost its real 1989 result to a
+    // 2006 one. Draw numbers are not unique in the source, so they cannot be
+    // the identity here; a draw is a date plus what was drawn on it.
+    byDraw.set(`${d.date}|${d.numbers.join('-')}`, { draw: d.draw, date: d.date, numbers: d.numbers, powerball: d.powerball });
     ok += 1;
   }
 
@@ -228,7 +233,24 @@ for (const [i, path] of todo.entries()) {
   }
 }
 
-const draws = [...byDraw.values()].sort((a, b) => a.draw - b.draw);
+const draws = [...byDraw.values()].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : a.draw - b.draw));
+
+// Report what the source got wrong rather than smoothing it over: a draw
+// number appearing on two different dates is a site error, and a gap in the
+// numbering is a combination missing from the exclusion set.
+const seenNumbers = new Map();
+const conflicts = [];
+for (const d of draws) {
+  if (seenNumbers.has(d.draw) && seenNumbers.get(d.draw) !== d.date) {
+    conflicts.push(`draw ${d.draw} on both ${seenNumbers.get(d.draw)} and ${d.date}`);
+  } else {
+    seenNumbers.set(d.draw, d.date);
+  }
+}
+const present = new Set(draws.map((d) => d.draw));
+const highest = Math.max(...present);
+const missingNumbers = [];
+for (let n = 1; n <= highest; n += 1) if (!present.has(n)) missingNumbers.push(n);
 
 console.log(`\n${'='.repeat(60)}`);
 console.log(`parsed draws     : ${draws.length}`);
@@ -250,7 +272,9 @@ const gaps = [];
 for (let i = 1; i < draws.length; i += 1) {
   if (draws[i].draw !== draws[i - 1].draw + 1) gaps.push(`${draws[i - 1].draw}->${draws[i].draw}`);
 }
-console.log(`draw-number gaps : ${gaps.length}${gaps.length ? ` (${gaps.slice(0, 10).join(', ')}${gaps.length > 10 ? ', …' : ''})` : ''}`);
+console.log(`duplicate draw nos: ${conflicts.length}${conflicts.length ? ` — ${conflicts.slice(0, 6).join('; ')}` : ''}`);
+console.log(`missing draw nos : ${missingNumbers.length} of ${highest} (${((missingNumbers.length / highest) * 100).toFixed(1)}% of the numbering absent)`);
+console.log(`legacy gap check : ${gaps.length}${gaps.length ? ` (${gaps.slice(0, 10).join(', ')}${gaps.length > 10 ? ', …' : ''})` : ''}`);
 
 if (MAX_MONTHS > 0) {
   console.log('\nSMOKE RUN — nothing written. Re-run with max_months = 0 for the full dataset.');
@@ -277,6 +301,11 @@ const out = {
     drawCount: draws.length,
     firstDraw: draws[0].date,
     lastDraw: draws[draws.length - 1].date,
+    // Coverage is not complete and the dataset should say so rather than let a
+    // reader assume every draw is here. highestDrawNumber minus drawCount is
+    // what the exclusion set is missing.
+    highestDrawNumber: highest,
+    missingDrawCount: missingNumbers.length,
   },
   draws,
 };
