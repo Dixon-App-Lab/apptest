@@ -89,15 +89,31 @@ function parseBlock(block) {
   const tok = run[1].trim().split(/\s+/).map(Number);
   if (tok.length < 6) return { error: `only ${tok.length} numbers` };
 
-  const numbers = tok.slice(0, 6);
+  const numbers = [...tok.slice(0, 6)].sort((a, b) => a - b);
   const bonus = tok[6] ?? null;
-  const powerball = tok[7] ?? null;
-  const strike = tok.slice(8, 12);
+
+  // Do not count fixed positions from the left. Powerball began partway
+  // through Lotto's history, so a 1987 draw renders six main, a bonus and four
+  // Strike -- eleven numbers -- and reading tok[7] as the Powerball shifted
+  // Strike left on every pre-Powerball draw. That was 21% of history.
+  //
+  // Identify Strike structurally instead: it is drawn from the main numbers,
+  // so a trailing four that are all in main is Strike. Whatever remains
+  // between the bonus and Strike is the Powerball, or nothing.
+  const rest = tok.slice(7);
+  let strike = [];
+  let middle = rest;
+  if (rest.length >= 4 && rest.slice(-4).every((n) => numbers.includes(n))) {
+    strike = rest.slice(-4);
+    middle = rest.slice(0, -4);
+  }
+  if (middle.length > 1) return { error: `${middle.length} unexplained numbers between bonus and strike` };
+  const powerball = middle.length === 1 ? middle[0] : null;
 
   return {
     draw: Number(drawNo.replace(/,/g, '')),
     date: `${yyyy}-${String(month + 1).padStart(2, '0')}-${dd.padStart(2, '0')}`,
-    numbers: [...numbers].sort((a, b) => a - b),
+    numbers,
     powerball,
     _bonus: bonus,
     _strike: strike,
