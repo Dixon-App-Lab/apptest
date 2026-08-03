@@ -1,0 +1,250 @@
+// Builds data/draws.json from lottoresults.co.nz. Runs in Actions only: the
+// dev container is refused at the proxy, so this cannot be run or tested from
+// a session (see the D1 card on the dev board).
+//
+// Shape of a rendered draw, confirmed by recon:
+//
+//   Lotto Result for Saturday, 01 August 2026 Draw Number: 2608
+//   Jackpot: $1,000,000   8 14 15 24 26 30   7   4   30 26 8 24
+//   \_________ six main _________/  bonus  PB  \__ Strike __/
+//
+// Only the six main numbers and the Powerball go into the dataset. The bonus
+// ball and Strike are dropped -- the exclusion set is keyed on six-number
+// combinations by canonical() and nothing else enters it.
+//
+// Strike is always a subset of the six main numbers, which is a free check on
+// the parse: if it is not a subset, the numbers were read wrong. That is an
+// assertion here, not a warning, because silently writing a mis-parsed dataset
+// would break the exclusion set while the app still looked fine.
+//
+// Powerball started partway through Lotto's history and Strike later still, so
+// older draws legitimately carry fewer than twelve numbers. Token counts are
+// reported rather than assumed.
+
+import { readFile, writeFile } from 'node:fs/promises';
+
+const DELAY_MS = 700;
+const MAX_MONTHS = Number(process.env.MAX_MONTHS || 0); // 0 = every month found
+const UA = 'FreshDrawFetch/1 (+https://github.com/Dixon-App-Lab/apptest) dataset build';
+
+const MONTHS = ['january','february','march','april','may','june','july','august','september','october','november','december'];
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+let ORIGIN = null;
+let fetches = 0;
+
+async function get(url, attempt = 1) {
+  await sleep(DELAY_MS);
+  fetches += 1;
+  try {
+    const res = await fetch(url, { headers: { 'user-agent': UA }, redirect: 'follow' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.text();
+  } catch (err) {
+    if (attempt < 3) {
+      await sleep(1500 * attempt);
+      return get(url, attempt + 1);
+    }
+    console.error(`  ! ${url} failed after ${attempt} attempts: ${err}`);
+    return null;
+  }
+}
+
+const text = (html) =>
+  html
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const paths = (html, re) =>
+  [...new Set([...html.matchAll(/href\s*=\s*["']([^"']+)["']/gi)].map((m) => m[1]).filter((h) => re.test(h)))];
+
+// One rendered result block -> a draw, or null with a reason.
+function parseBlock(block) {
+  const head = block.match(
+    /^Lotto Result for [A-Za-z]+,\s*(\d{1,2})\s+([A-Za-z]+),?\s+(\d{4})\s*Draw Number:\s*([\d,]+)\s*(?:Jackpot:[^\d]*[\d,]+)?\s*/i,
+  );
+  if (!head) return { error: 'no header' };
+
+  const [, dd, monthName, yyyy, drawNo] = head;
+  const month = MONTHS.indexOf(monthName.toLowerCase());
+  if (month < 0) return { error: `bad month ${monthName}` };
+
+  // The balls run immediately after the header. Take the maximal leading run
+  // of 1-2 digit numbers and stop at the first word -- anchoring on position
+  // rather than scanning the whole block keeps prose numbers out.
+  const run = block.slice(head[0].length).match(/^((?:\d{1,2}\s+)*\d{1,2})(?!\d)/);
+  if (!run) return { error: 'no number run' };
+
+  const tok = run[1].trim().split(/\s+/).map(Number);
+  if (tok.length < 6) return { error: `only ${tok.length} numbers` };
+
+  const numbers = tok.slice(0, 6);
+  const bonus = tok[6] ?? null;
+  const powerball = tok[7] ?? null;
+  const strike = tok.slice(8, 12);
+
+  return {
+    draw: Number(drawNo.replace(/,/g, '')),
+    date: `${yyyy}-${String(month + 1).padStart(2, '0')}-${dd.padStart(2, '0')}`,
+    numbers: [...numbers].sort((a, b) => a - b),
+    powerball,
+    _bonus: bonus,
+    _strike: strike,
+    _tokens: tok.length,
+  };
+}
+
+for (const candidate of ['https://lottoresults.co.nz', 'http://lottoresults.co.nz']) {
+  const probe = await get(`${candidate}/`);
+  if (probe) {
+    ORIGIN = candidate;
+    break;
+  }
+}
+if (!ORIGIN) {
+  console.error('Site unreachable.');
+  process.exit(1);
+}
+console.log(`origin: ${ORIGIN}`);
+
+// Discover month pages. The archive indexes them; it may index years which in
+// turn index months, so follow one level down before giving up.
+const monthRe = new RegExp(`/lotto/(?:${MONTHS.join('|')})-\\d{4}$`, 'i');
+const months = new Set();
+
+for (const seed of [`${ORIGIN}/lotto/archive`, `${ORIGIN}/lotto/`]) {
+  const html = await get(seed);
+  if (!html) continue;
+  paths(html, monthRe).forEach((p) => months.add(new URL(p, ORIGIN).pathname));
+
+  for (const yearPath of paths(html, /\/lotto\/(archive\/)?(19|20)\d{2}\/?$/i)) {
+    const y = await get(new URL(yearPath, ORIGIN).toString());
+    if (y) paths(y, monthRe).forEach((p) => months.add(new URL(p, ORIGIN).pathname));
+  }
+}
+
+const monthList = [...months].sort();
+console.log(`month pages discovered: ${monthList.length}`);
+if (!monthList.length) {
+  console.error('No month pages found -- the archive layout changed. Not writing anything.');
+  process.exit(1);
+}
+
+const todo = MAX_MONTHS > 0 ? monthList.slice(-MAX_MONTHS) : monthList;
+console.log(`fetching ${todo.length} month page(s)${MAX_MONTHS ? ' (SMOKE RUN — partial)' : ''}\n`);
+
+const byDraw = new Map();
+const shapes = new Map();
+const problems = [];
+
+for (const [i, path] of todo.entries()) {
+  const html = await get(`${ORIGIN}${path}`);
+  if (!html) {
+    problems.push(`fetch failed: ${path}`);
+    continue;
+  }
+
+  const blocks = text(html).split(/(?=Lotto Result for )/).filter((b) => b.startsWith('Lotto Result for'));
+  let ok = 0;
+
+  for (const block of blocks) {
+    const d = parseBlock(block);
+    if (d.error) {
+      problems.push(`${path}: ${d.error}`);
+      continue;
+    }
+
+    const bad = [];
+    if (new Set(d.numbers).size !== 6) bad.push('duplicate main numbers');
+    if (d.numbers.some((n) => n < 1 || n > 40)) bad.push('main number out of 1-40');
+    if (d.powerball !== null && (d.powerball < 1 || d.powerball > 10)) bad.push(`powerball ${d.powerball} out of 1-10`);
+    // The self-check: Strike is drawn from the main numbers.
+    if (d._strike.length === 4 && !d._strike.every((n) => d.numbers.includes(n))) bad.push('strike not a subset of main');
+
+    if (bad.length) {
+      problems.push(`draw ${d.draw} (${d.date}): ${bad.join('; ')} [tokens ${d._tokens}: ${d.numbers} b=${d._bonus} pb=${d.powerball} s=${d._strike}]`);
+      continue;
+    }
+
+    shapes.set(d._tokens, (shapes.get(d._tokens) || 0) + 1);
+    byDraw.set(d.draw, { draw: d.draw, date: d.date, numbers: d.numbers, powerball: d.powerball });
+    ok += 1;
+  }
+
+  if ((i + 1) % 25 === 0 || i === todo.length - 1) {
+    console.log(`  [${i + 1}/${todo.length}] ${path} -> ${ok} draws (running total ${byDraw.size})`);
+  }
+}
+
+const draws = [...byDraw.values()].sort((a, b) => a.draw - b.draw);
+
+console.log(`\n${'='.repeat(60)}`);
+console.log(`parsed draws     : ${draws.length}`);
+console.log(`http requests    : ${fetches}`);
+console.log(`token shapes     : ${[...shapes.entries()].sort((a, b) => a[0] - b[0]).map(([k, v]) => `${k}->${v}`).join('  ')}`);
+console.log(`without powerball: ${draws.filter((d) => d.powerball === null).length}`);
+console.log(`problems         : ${problems.length}`);
+problems.slice(0, 25).forEach((p) => console.log(`  - ${p}`));
+if (problems.length > 25) console.log(`  ... and ${problems.length - 25} more`);
+
+if (!draws.length) {
+  console.error('\nNo draws parsed. Not writing anything.');
+  process.exit(1);
+}
+
+// Gaps are expected on a smoke run; on a full run they mean missed pages.
+const gaps = [];
+for (let i = 1; i < draws.length; i += 1) {
+  if (draws[i].draw !== draws[i - 1].draw + 1) gaps.push(`${draws[i - 1].draw}->${draws[i].draw}`);
+}
+console.log(`draw-number gaps : ${gaps.length}${gaps.length ? ` (${gaps.slice(0, 10).join(', ')}${gaps.length > 10 ? ', …' : ''})` : ''}`);
+
+if (MAX_MONTHS > 0) {
+  console.log('\nSMOKE RUN — nothing written. Re-run with max_months = 0 for the full dataset.');
+  process.exit(0);
+}
+
+const failureRate = problems.length / (problems.length + draws.length);
+if (failureRate > 0.01) {
+  console.error(`\nParse failure rate ${(failureRate * 100).toFixed(2)}% exceeds 1%. Not writing a dataset this unreliable.`);
+  process.exit(1);
+}
+
+const existing = JSON.parse(await readFile('data/draws.json', 'utf8'));
+const out = {
+  meta: {
+    synthetic: false,
+    source: `${ORIGIN}/lotto/`,
+    fetched: new Date().toISOString().slice(0, 10),
+    generator: 'tools/fetch-draws.mjs',
+    game: existing.meta.game,
+    mainPool: existing.meta.mainPool,
+    mainCount: existing.meta.mainCount,
+    powerballPool: existing.meta.powerballPool,
+    drawCount: draws.length,
+    firstDraw: draws[0].date,
+    lastDraw: draws[draws.length - 1].date,
+  },
+  draws,
+};
+
+await writeFile('data/draws.json', `${JSON.stringify(out, null, 2)}\n`);
+console.log(`\nwrote data/draws.json — ${draws.length} draws, ${out.meta.firstDraw} to ${out.meta.lastDraw}`);
+
+// Phones cache-first, so a dataset change that does not move CACHE ships to
+// nobody. Tying the version to the last draw makes that automatic.
+const sw = await readFile('sw.js', 'utf8');
+const cache = `freshdraw-d${draws[draws.length - 1].draw}`;
+const bumped = sw.replace(/const CACHE = '[^']*';/, `const CACHE = '${cache}';`);
+if (bumped === sw) {
+  console.error('Could not rewrite CACHE in sw.js — phones would keep serving the old dataset.');
+  process.exit(1);
+}
+await writeFile('sw.js', bumped);
+console.log(`bumped sw.js CACHE -> ${cache}`);

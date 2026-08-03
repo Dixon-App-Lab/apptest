@@ -1,0 +1,71 @@
+name: Fetch real draw data (B1)
+
+# Builds data/draws.json from lottoresults.co.nz and commits it.
+#
+# It commits rather than uploading an artifact because a session cannot
+# download artifacts -- github.com is blocked by the same egress policy that
+# blocks the site -- so committing is the only route that gets the dataset
+# into the repo.
+#
+# Manual only. B2 may later put this on a schedule for Wed/Sat draws; that is
+# a separate decision and deliberately not made here.
+
+on:
+  workflow_dispatch:
+    inputs:
+      max_months:
+        description: 'Month pages to fetch (from newest). 0 = all. Non-zero is a smoke run and writes nothing.'
+        required: true
+        default: '6'
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Build the dataset
+        env:
+          MAX_MONTHS: ${{ inputs.max_months }}
+        run: node tools/fetch-draws.mjs
+
+      # Verify before committing: a dataset that breaks the app is worse than
+      # no dataset, and the harness drives a real browser against it.
+      - name: Verify against the new data
+        if: inputs.max_months == '0'
+        run: |
+          npm ci
+          npx playwright-core install --with-deps chromium
+          npm run serve &
+          server=$!
+          trap 'kill $server 2>/dev/null || true' EXIT
+          for _ in $(seq 1 30); do curl -sf http://127.0.0.1:8765/ >/dev/null && break; sleep 1; done
+          npm run verify
+
+      - name: Commit
+        if: inputs.max_months == '0'
+        run: |
+          if git diff --quiet -- data/draws.json sw.js; then
+            echo "No change to commit."
+            exit 0
+          fi
+          git config user.name  'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          git add data/draws.json sw.js
+          git commit -m "Swap in real NZ Lotto draw history
+
+          Replaces the synthetic dataset with draws fetched from
+          lottoresults.co.nz and sets meta.synthetic to false, which drops the
+          placeholder banner. No app code changes -- the schema is the contract.
+
+          sw.js CACHE is bumped to match the last draw so phones do not keep
+          serving the synthetic data from cache.
+
+          Built by tools/fetch-draws.mjs via the Fetch real draw data workflow."
+          git push
