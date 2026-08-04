@@ -22,6 +22,7 @@
 // reported rather than assumed.
 
 import { readFile, writeFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 
 const DELAY_MS = 700;
 // Scope and dry-run are separate: limiting how far back to go is a product
@@ -326,17 +327,22 @@ const out = {
   draws,
 };
 
-await writeFile('data/draws.json', `${JSON.stringify(out, null, 2)}\n`);
+const json = `${JSON.stringify(out, null, 2)}\n`;
+await writeFile('data/draws.json', json);
 console.log(`\nwrote data/draws.json — ${draws.length} draws, ${out.meta.firstDraw} to ${out.meta.lastDraw}`);
 
 // Phones cache-first, so a dataset change that does not move CACHE ships to
-// nobody. Tying the version to the last draw makes that automatic.
+// nobody. Derive the version from the content, not from the last draw number:
+// narrowing the window from 39 years to 15 changed 1,200 draws while the last
+// draw stayed 2608, so a draw-number version would not have moved and every
+// installed phone would have kept the old dataset indefinitely.
 const sw = await readFile('sw.js', 'utf8');
-const cache = `freshdraw-d${draws[draws.length - 1].draw}`;
-const bumped = sw.replace(/const CACHE = '[^']*';/, `const CACHE = '${cache}';`);
-if (bumped === sw) {
-  console.error('Could not rewrite CACHE in sw.js — phones would keep serving the old dataset.');
+if (!/const CACHE = '[^']*';/.test(sw)) {
+  console.error('No CACHE declaration found in sw.js — refusing to ship data phones would not pick up.');
   process.exit(1);
 }
+const digest = createHash('sha256').update(json).digest('hex').slice(0, 8);
+const cache = `freshdraw-d${draws[draws.length - 1].draw}-${digest}`;
+const bumped = sw.replace(/const CACHE = '[^']*';/, `const CACHE = '${cache}';`);
 await writeFile('sw.js', bumped);
-console.log(`bumped sw.js CACHE -> ${cache}`);
+console.log(bumped === sw ? `sw.js CACHE already ${cache} (data unchanged)` : `bumped sw.js CACHE -> ${cache}`);
