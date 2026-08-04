@@ -1,6 +1,6 @@
 {
-  "name": "Fresh Draw — NZ Lotto number generator",
-  "short_name": "Fresh Draw",
+  "name": "My Lucky Draw — NZ Lotto number generator",
+  "short_name": "My Lucky Draw",
   "description": "Generates an NZ Lotto line, skipping combinations that have already won.",
   "id": "./",
   "start_url": "./",
