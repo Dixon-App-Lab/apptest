@@ -45,7 +45,7 @@
 
 <header>
   <h1>Fresh Draw — Dev Board</h1>
-  <div class="meta">Updated 30 Jul 2026 · source of truth for what's queued, what's blocked on the Product Owner, and what shipped</div>
+  <div class="meta">Updated 4 Aug 2026 · source of truth for what's queued, what's blocked on the Product Owner, and what shipped</div>
 </header>
 
 <div class="howto">
@@ -68,7 +68,10 @@
   </div>
 
   <div class="colm">
-    <h2>🗣️ Standup Log — session handoffs <span class="count">8</span></h2>
+    <h2>🗣️ Standup Log — session handoffs <span class="count">9</span></h2>
+
+    <div class="card"><span class="id">4 Aug 2026</span><span class="t">B1 shipped — real draw data, last 15 years</span>
+      <div class="d"><b>Did:</b> built <code>tools/fetch-draws.mjs</code> and shipped <code>data/draws.json</code> with <b>1,289 real NZ Lotto draws, 7 May 2011 to 1 Aug 2026</b>. <code>meta.synthetic</code> is false, the placeholder banner is gone, and no app code changed — <code>app.js</code> already had the real-data branch and derives every figure from the dataset. Owner set the 15-year window; the fetcher takes it as <code>months_back</code>.<br><br>Four bugs, each caught by a guard rather than by reading the code. <b>1.</b> Assumed https; the site is http-only and every request failed while the workflow still reported success. <b>2.</b> <code>Jackpot: Rollover</code> has no amount, so a regex hunting for a number ate the first main ball and shifted every field left. <b>3.</b> Powerball postdates 1987, so pre-Powerball draws render eleven numbers, and reading a fixed position put a Strike ball in the Powerball slot across 21% of history — the 1% gate caught it and refused to write. <b>4.</b> Keying on draw number let a few 2006 pages with wrong numbers overwrite genuine draws.<br><br>The check that did the most work was free: Strike is drawn from the six main numbers, so <code>strike ⊆ main</code> is a correctness assertion on every draw. It caught the shift and then disambiguated the fix.<br><br><b>Blocked on:</b> nothing.<br><br><b>Next:</b> B2 (keep it current after Wed/Sat draws) is now a small step — the fetcher exists and the workflow already commits. B6 covers the archive gap.</div></div>
 
     <div class="card"><span class="id">3 Aug 2026 (org move)</span><span class="t">Repo is now Dixon-App-Lab/apptest; live URL changed</span>
       <div class="d"><b>Did:</b> owner moved the repo to the <code>Dixon-App-Lab</code> org to get onto a paid GitHub plan. Confirmed Pages survived the move — four deploys green since, and the latest reports <code>Evaluated environment url: https://dixon-app-lab.github.io/apptest/</code>. Updated <code>CLAUDE.md</code> to the new repo and URL. Left the older standup entries quoting the old address alone: they record what was true when written, and this column is append-only.<br><br>Nothing in the app needed changing, which is the point worth noting — <code>manifest.webmanifest</code> uses relative <code>start_url</code> and <code>scope</code> (<code>./</code>) and <code>sw.js</code> caches relative paths, so the whole app moved origin without a single edit. Had any of those been absolute, the move would have broken the installed app outright.<br><br><b>Blocked on:</b> nothing.<br><br><b>Next:</b> B1, pending the owner's word on the fetcher writing <code>data/draws.json</code> into the repo. B5 added for re-adding the phone icon from the new URL.</div></div>
@@ -124,12 +127,11 @@
       <div class="d">The org move changed the origin from <code>antonydixon-lab.github.io</code> to <code>dixon-app-lab.github.io</code>. A PWA's <code>start_url</code> and <code>scope</code> resolve against wherever it was installed from, so the icon added to the phone on 3 Aug points at the old origin. GitHub redirects the repo, but an installed app holding a cached shell under the old origin is a different matter — worth confirming rather than assuming either way.<br><br>Fix if broken: delete the home-screen icon and re-add from <code>https://dixon-app-lab.github.io/apptest/</code>. This is exactly the risk D2 flagged when it argued for renaming early, which turned out to be right for a reason nobody predicted. Owner-side; cannot be checked from a session.</div>
       <span class="tag small">Small — needs the phone</span></div>
 
-    <div class="card"><span class="id">B1</span><span class="t">Swap in real NZ Lotto history — source confirmed, ready to build</span>
-      <div class="d">Replace <code>data/draws.json</code> with real draws and set <code>meta.synthetic</code> to <code>false</code>, which drops the warning banner automatically. Still no app code changes — the schema is the contract.<br><br>
-      <b>Shape confirmed by recon.</b> Each draw renders as: six main numbers ascending, then the bonus ball, then the Powerball, then four Strike numbers. Draw 2608 (Sat 01 Aug 2026) is <code>8 14 15 24 26 30 | 7 | 4 | 30 26 8 24</code>. The Strike numbers are always a subset of the six main numbers, which gives the parser a free self-check — if Strike is not a subset, the parse is wrong.<br><br>
-      <b>Only the first three fields matter here.</b> Fresh Draw needs the six main numbers and the Powerball. Bonus ball and Strike are dropped: the exclusion set is keyed on six-number combinations via <code>canonical()</code>, and nothing else enters it.<br><br>
-      <b>Route:</b> <code>/lotto/</code> and each <code>/lotto/&lt;month&gt;-&lt;year&gt;</code> page carry full draw data inline, so the fetch is ~470 monthly pages rather than ~2,600 per-draw ones. <code>/lotto/archive</code> is the index back through history.</div>
-      <span class="tag small">Ready to build</span></div>
+    <div class="card"><span class="id">B6</span><span class="t">Understand the source's 2025 archive gap</span>
+      <div class="d">72 of the 1,361 draw numbers in the collected window are absent (5.3%), clustered in 2187–2196 and a block of 2472–2534 spanning most of 2025. Only <code>/lotto/september-2025</code> actually 404s; the rest are months the site serves without listing every draw. Parsing is not the cause — zero parse problems, uniform token shapes, no duplicate draw numbers across all 1,289.<br><br>Worth a <code>debug_month</code> dump against a 2025 month to see whether those draws are rendered differently or simply absent from the source. Disclosure is already handled: <code>meta.missingDrawCount</code> records it and the app states its own date range.</div>
+      <span class="tag small">Small — diagnostic only</span></div>
+
+    
 
     <div class="card"><span class="id">B2</span><span class="t">Keep the dataset current after each draw</span>
       <div class="d">Draws are Wed/Sat. Options: manual re-export, or a scheduled GitHub Action that fetches and commits (runners have open network, unlike the dev container). Only worth doing once the data is real.</div>
@@ -161,7 +163,10 @@
   </div>
 
   <div class="colm">
-    <h2 class="donec">✅ Shipped <span class="count">7</span></h2>
+    <h2 class="donec">✅ Shipped <span class="count">8</span></h2>
+
+    <div class="card"><span class="id">B1</span><span class="t">Real NZ Lotto draw history, last 15 years</span>
+      <div class="d">1,289 real draws, 7 May 2011 to 1 Aug 2026, replacing the synthetic stand-in. <code>meta.synthetic</code> false, placeholder banner gone, <b>no app code changed</b> — the schema really was the contract, as D0 predicted when it argued for building against synthetic data first.<br><br>Verified in a real browser against the new dataset before it was allowed to commit: 1,289 excluded of 3,838,380 (0.034%), odds 1 in 3,838,380 → 1 in 3,837,091, a known past draw correctly rejected, offline reload working. Every one of 1,289 combinations is distinct; zero malformed sets, zero out-of-range Powerballs, zero date-order errors.<br><br>Window is deliberate, not a limitation of the source, and <code>meta.coverage</code> says so. Service worker cache is versioned by a hash of the dataset — an earlier version keyed on the last draw number, which would not have moved when the window narrowed, leaving every installed phone on the old data. <b>Shipped 4 Aug 2026.</b></div></div>
 
     <div class="card"><span class="id">D1</span><span class="t">Decided: real draw history comes from lottoresults.co.nz</span>
       <div class="d">Owner's pick, and the only NZ source found. Settled by a one-off recon workflow rather than by argument, because the dev container cannot reach the site at all.<br><br>
