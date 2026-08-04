@@ -71,6 +71,64 @@ console.log('distinct lines         :', seen.size, '/ 25');
 console.log('readout                :', (await page.locator('#readout').textContent()).trim());
 console.log('history entries        :', await page.locator('#history li').count());
 
+// Multi-line tickets + Strike: bump to 4 lines, turn on Strike, and check both
+// the count of tickets rendered and that Powerball sits to the right of the
+// six main numbers on the same row (the standard printed-ticket layout).
+await page.locator('#linesUp').click();
+await page.locator('#linesUp').click();
+await page.locator('#linesUp').click();
+if ((await page.locator('#linesCount').textContent()).trim() !== '4') {
+  throw new Error('lines stepper did not reach 4');
+}
+if (!(await page.locator('#linesUp').isDisabled())) throw new Error('lines stepper should cap at 4');
+await page.locator('#strikeToggle').check();
+await btn.click();
+await page.waitForFunction(() => document.querySelectorAll('.ticket').length === 5);
+
+const ticketCounts = await page.evaluate(() =>
+  [...document.querySelectorAll('.ticket')].map((t) => t.querySelectorAll('.ball').length),
+);
+if (ticketCounts.length !== 5) throw new Error(`expected 5 tickets (4 lines + strike), got ${ticketCounts.length}`);
+if (!ticketCounts.slice(0, 4).every((n) => n === 7)) throw new Error(`a main-line ticket didn't have 7 balls: ${ticketCounts}`);
+if (ticketCounts[4] !== 4) throw new Error(`strike ticket didn't have 4 balls: ${ticketCounts[4]}`);
+console.log('multi-line + strike    : 4 lines (6+PB) plus 1 Strike line (4) rendered');
+
+const pbPosition = await page.evaluate(() => {
+  const ticket = document.querySelector('.ticket');
+  const mainBalls = [...ticket.querySelectorAll('.row.main .ball')];
+  const pb = ticket.querySelector('.ball.pb');
+  const last = mainBalls[mainBalls.length - 1];
+  const pbRect = pb.getBoundingClientRect();
+  const lastRect = last.getBoundingClientRect();
+  const pbCenterY = pbRect.top + pbRect.height / 2;
+  const lastCenterY = lastRect.top + lastRect.height / 2;
+  // Balls can render at different diameters (Powerball is fixed-size, main
+  // balls shrink to fit six across), so "same row" means vertically centered
+  // together, not equal offsetTop.
+  return { sameRow: Math.abs(pbCenterY - lastCenterY) < 4, toTheRight: pbRect.left > lastRect.left };
+});
+if (!pbPosition.sameRow || !pbPosition.toTheRight) {
+  throw new Error(`Powerball is not positioned to the right of the main row: ${JSON.stringify(pbPosition)}`);
+}
+console.log('powerball position     : same row, to the right of the six main numbers');
+
+// Worst-case layout: 4 lines + Strike is the most balls on screen at once.
+for (const width of [320, 360, 600]) {
+  await page.setViewportSize({ width, height: 900 });
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
+  if (overflow) throw new Error(`horizontal overflow at ${width}px with 4 lines + Strike`);
+}
+console.log('layout w/ 4+strike     : no horizontal overflow at 320-600px');
+await page.setViewportSize({ width: 412, height: 915 });
+
+// Reset back to the default single-line state for the rest of the checks.
+await page.locator('#strikeToggle').uncheck();
+await page.locator('#linesDown').click();
+await page.locator('#linesDown').click();
+await page.locator('#linesDown').click();
+await btn.click();
+await page.waitForFunction(() => document.querySelectorAll('.ball').length === 7);
+
 // Exclusion actually bites: force a known past winner into the pool and confirm rejection
 const rejects = await page.evaluate(async () => {
   const r = await fetch('./data/draws.json');

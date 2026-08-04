@@ -1,5 +1,7 @@
-const HISTORY_KEY = 'freshdraw.history.v1';
+const HISTORY_KEY = 'freshdraw.history.v2';
 const MAX_HISTORY = 10;
+const MAX_LINES = 4;
+const STRIKE_COUNT = 4;
 const ATTEMPT_CAP = 10000; // guards against an exhausted pool; never reached in practice
 
 const el = {
@@ -19,6 +21,10 @@ const el = {
   excludedShare: document.getElementById('excludedShare'),
   oddsBefore: document.getElementById('oddsBefore'),
   oddsAfter: document.getElementById('oddsAfter'),
+  linesCount: document.getElementById('linesCount'),
+  linesDown: document.getElementById('linesDown'),
+  linesUp: document.getElementById('linesUp'),
+  strikeToggle: document.getElementById('strikeToggle'),
 };
 
 const nz = new Intl.NumberFormat('en-NZ');
@@ -26,6 +32,8 @@ const nz = new Intl.NumberFormat('en-NZ');
 let config = null;
 let excluded = null; // Set of canonical keys, e.g. "3-11-19-24-31-38"
 let history = loadHistory();
+let lineCount = 1;
+let strikeEnabled = false;
 
 /* ---------- randomness ---------- */
 
@@ -52,14 +60,25 @@ function drawNumbers(count, pool) {
 
 const canonical = (numbers) => numbers.join('-');
 
-function generateLine() {
+// batchExcluded holds the canonical keys already handed out earlier in this
+// same generate click, so a multi-line ticket never repeats a line.
+function generateLine(batchExcluded) {
   for (let attempt = 1; attempt <= ATTEMPT_CAP; attempt++) {
     const numbers = drawNumbers(config.mainCount, config.mainPool);
-    if (!excluded.has(canonical(numbers))) {
+    const key = canonical(numbers);
+    if (!excluded.has(key) && !batchExcluded.has(key)) {
+      batchExcluded.add(key);
       return { numbers, powerball: randomInt(config.powerballPool), attempts: attempt };
     }
   }
   throw new Error('Could not find an unused combination within the attempt cap.');
+}
+
+// Strike is a separate NZ Lotto game — four numbers, no Powerball — and its
+// own past results aren't part of this app's dataset, so there is nothing to
+// exclude against.
+function generateStrikeLine() {
+  return { numbers: drawNumbers(STRIKE_COUNT, config.mainPool) };
 }
 
 /* ---------- maths for the honesty panel ---------- */
@@ -83,18 +102,47 @@ function describeOdds() {
 
 /* ---------- rendering ---------- */
 
-function renderLine({ numbers, powerball }) {
-  // Main numbers and Powerball go on separate rows deliberately. Seven balls on
-  // one row wraps unevenly on a phone; this reads the same at any width.
+function renderLines(lines, strike) {
+  const tickets = lines.map((line, i) => ticketNode(line, i, lines.length > 1));
+  if (strike) tickets.push(strikeNode(strike));
+  el.balls.replaceChildren(...tickets);
+}
+
+function ticketNode({ numbers, powerball }, index, labelled) {
+  const ticket = document.createElement('div');
+  ticket.className = 'ticket';
+
+  if (labelled) {
+    const label = document.createElement('span');
+    label.className = 'ticket-label';
+    label.textContent = `L${index + 1}`;
+    ticket.append(label);
+  }
+
+  // Main numbers and Powerball sit in the same row, Powerball to the right —
+  // the layout of a standard printed Lotto ticket.
   const main = document.createElement('div');
   main.className = 'row main';
   main.append(...numbers.map((n, i) => ball(n, i)));
 
-  const power = document.createElement('div');
-  power.className = 'row power';
-  power.append(ball(powerball, numbers.length, true));
+  ticket.append(main, ball(powerball, numbers.length, true));
+  return ticket;
+}
 
-  el.balls.replaceChildren(main, power);
+function strikeNode({ numbers }) {
+  const ticket = document.createElement('div');
+  ticket.className = 'ticket strike';
+
+  const label = document.createElement('span');
+  label.className = 'ticket-label';
+  label.textContent = 'STK';
+
+  const row = document.createElement('div');
+  row.className = 'row strike';
+  row.append(...numbers.map((n, i) => ball(n, i)));
+
+  ticket.append(label, row);
+  return ticket;
 }
 
 function ball(value, index, isPowerball = false) {
@@ -106,13 +154,15 @@ function ball(value, index, isPowerball = false) {
   return node;
 }
 
-function renderReadout({ attempts }) {
+function renderReadout(lines, strike) {
   const checked = `Checked against ${nz.format(excluded.size)} past draws`;
-  const redraws =
-    attempts === 1
-      ? 'first line was unused'
-      : `redrawn ${attempts - 1} ${attempts === 2 ? 'time' : 'times'} to avoid a past winner`;
-  el.readout.textContent = `${checked} — ${redraws}.`;
+  const redraws = lines.reduce((sum, line) => sum + (line.attempts - 1), 0);
+  const detail =
+    redraws === 0
+      ? (lines.length === 1 ? 'the line was unused' : 'all lines were unused')
+      : `redrawn ${redraws} ${redraws === 1 ? 'time' : 'times'} to avoid past winners`;
+  const strikeNote = strike ? ' Strike line is separate and not checked.' : '';
+  el.readout.textContent = `${checked} — ${detail}.${strikeNote}`;
 }
 
 function renderHistory() {
@@ -120,13 +170,36 @@ function renderHistory() {
   el.history.replaceChildren(
     ...history.map((entry) => {
       const li = document.createElement('li');
-      const line = document.createElement('span');
-      line.className = 'line';
-      line.textContent = entry.numbers.join('  ');
-      const pb = document.createElement('span');
-      pb.className = 'pb';
-      pb.textContent = `PB ${entry.powerball}`;
-      li.append(line, pb);
+      const rows = document.createElement('div');
+      rows.className = 'hist-lines';
+
+      entry.lines.forEach((line) => {
+        const row = document.createElement('div');
+        row.className = 'hist-line';
+        const nums = document.createElement('span');
+        nums.className = 'line';
+        nums.textContent = line.numbers.join('  ');
+        const pb = document.createElement('span');
+        pb.className = 'pb';
+        pb.textContent = `PB ${line.powerball}`;
+        row.append(nums, pb);
+        rows.append(row);
+      });
+
+      if (entry.strike) {
+        const row = document.createElement('div');
+        row.className = 'hist-line';
+        const nums = document.createElement('span');
+        nums.className = 'line';
+        nums.textContent = entry.strike.numbers.join('  ');
+        const pb = document.createElement('span');
+        pb.className = 'pb';
+        pb.textContent = 'Strike';
+        row.append(nums, pb);
+        rows.append(row);
+      }
+
+      li.append(rows);
       return li;
     }),
   );
@@ -260,20 +333,34 @@ function saveHistory() {
 
 /* ---------- wiring ---------- */
 
+function updateLinesControl() {
+  el.linesCount.textContent = lineCount;
+  el.linesDown.disabled = lineCount <= 1;
+  el.linesUp.disabled = lineCount >= MAX_LINES;
+}
+
 function onGenerate() {
-  let line;
+  const lines = [];
+  const batchExcluded = new Set();
   try {
-    line = generateLine();
+    for (let i = 0; i < lineCount; i++) lines.push(generateLine(batchExcluded));
   } catch (error) {
     el.readout.textContent = error.message;
     return;
   }
+  const strike = strikeEnabled ? generateStrikeLine() : null;
 
   el.placeholder?.remove();
-  renderLine(line);
-  renderReadout(line);
+  renderLines(lines, strike);
+  renderReadout(lines, strike);
 
-  history = [{ numbers: line.numbers, powerball: line.powerball }, ...history].slice(0, MAX_HISTORY);
+  history = [
+    {
+      lines: lines.map((line) => ({ numbers: line.numbers, powerball: line.powerball })),
+      strike: strike ? { numbers: strike.numbers } : null,
+    },
+    ...history,
+  ].slice(0, MAX_HISTORY);
   saveHistory();
   renderHistory();
 }
@@ -305,6 +392,19 @@ async function init() {
     history = [];
     saveHistory();
     renderHistory();
+  });
+
+  updateLinesControl();
+  el.linesDown.addEventListener('click', () => {
+    lineCount = Math.max(1, lineCount - 1);
+    updateLinesControl();
+  });
+  el.linesUp.addEventListener('click', () => {
+    lineCount = Math.min(MAX_LINES, lineCount + 1);
+    updateLinesControl();
+  });
+  el.strikeToggle.addEventListener('change', () => {
+    strikeEnabled = el.strikeToggle.checked;
   });
 
   const showOffline = () => {

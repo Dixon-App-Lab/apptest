@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Fresh Draw — NZ Lotto number generator</title>
+<title>My Lucky Draw — NZ Lotto number generator</title>
 <meta name="description" content="Generates an NZ Lotto line, skipping combinations that have already won.">
 <meta name="theme-color" content="#1b1638">
 <link rel="manifest" href="./manifest.webmanifest">
@@ -14,14 +14,29 @@
 <body>
 
 <header class="head">
-  <h1>Fresh Draw</h1>
+  <h1>My Lucky Draw</h1>
   <p class="sub">NZ Lotto &middot; 6 from 40 plus Powerball</p>
   <p class="badge" id="dataBadge" hidden></p>
 </header>
 
 <main>
   <section class="stage" aria-labelledby="resultHeading">
-    <h2 class="sr-only" id="resultHeading">Your line</h2>
+    <h2 class="sr-only" id="resultHeading">Your lines</h2>
+
+    <div class="controls">
+      <div class="lines-control">
+        <span class="controls-label">Lines</span>
+        <div class="stepper" role="group" aria-label="Number of lines">
+          <button class="step" id="linesDown" type="button" aria-label="Fewer lines">&minus;</button>
+          <span id="linesCount" aria-live="polite">1</span>
+          <button class="step" id="linesUp" type="button" aria-label="More lines">+</button>
+        </div>
+      </div>
+      <label class="strike-control">
+        <input type="checkbox" id="strikeToggle">
+        <span>Add a Strike line</span>
+      </label>
+    </div>
 
     <div class="balls" id="balls" aria-live="polite" aria-atomic="true">
       <p class="placeholder" id="placeholder">Tap below for a line.</p>
@@ -68,7 +83,12 @@
         past draw it is thrown away and redrawn — the attempt count above shows
         how often that happened.</p>
         <p>Only the six main numbers are compared. The Powerball is drawn
-        independently and not part of the exclusion.</p>
+        independently and not part of the exclusion. When you generate more
+        than one line, each line is also checked against the others so you
+        never get the same six numbers twice in one go.</p>
+        <p>A Strike line is a different game &mdash; four numbers, not six
+        &mdash; so it isn't compared against the past-draw set at all. It's
+        drawn the same way, just without exclusion.</p>
       </div>
     </details>
 

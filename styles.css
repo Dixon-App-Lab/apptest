@@ -103,11 +103,28 @@ body {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  align-items: center;
-  gap: 0.55rem;
+  gap: 1.1rem;
   min-height: 4rem;
   /* Room for the Powerball's label, which hangs below its ball. */
   padding-bottom: 1rem;
+}
+
+/* One ticket per line: the six main numbers in a row, Powerball to the
+   right of them, matching a standard printed Lotto ticket. */
+.ticket {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+}
+
+.ticket-label {
+  flex: 0 0 auto;
+  width: 1.6rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--muted);
+  letter-spacing: 0.04em;
 }
 
 /* Six equal columns rather than a wrapping flex row: at 3.1rem a ball is a few
@@ -118,19 +135,88 @@ body {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
   justify-items: center;
-  gap: 0.5rem;
-  width: 100%;
+  gap: 0.4rem;
+  flex: 1;
+  min-width: 0;
 }
 
-.row.power {
-  display: flex;
-  justify-content: center;
+.row.strike {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  justify-items: start;
+  gap: 0.4rem;
+  flex: 1;
+  min-width: 0;
+  max-width: 60%;
+}
+
+.ticket .ball.pb {
+  flex: 0 0 auto;
 }
 
 .placeholder {
   margin: 0;
   color: var(--muted);
   font-size: 0.95rem;
+  text-align: center;
+}
+
+/* Controls */
+
+.controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+  flex-wrap: wrap;
+}
+
+.lines-control {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.controls-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.stepper {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.stepper span {
+  min-width: 1rem;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.step {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.step:disabled { opacity: 0.4; cursor: default; }
+
+.strike-control {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.85rem;
+  color: var(--muted);
 }
 
 .ball {
@@ -291,13 +377,22 @@ summary::marker { color: var(--muted); }
 }
 
 .history li {
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
   padding: 0.55rem 0;
   border-top: 1px solid var(--line);
   font-size: 0.9rem;
   font-variant-numeric: tabular-nums;
+}
+
+.hist-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.hist-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
 }
 
 .history .line { letter-spacing: 0.02em; }
