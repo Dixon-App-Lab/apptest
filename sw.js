@@ -3,7 +3,7 @@
 // worth going to the network for first.
 //
 // Bump CACHE on every deploy: the version string is what evicts the old files.
-const CACHE = 'freshdraw-d2608-1ebf6ea8';
+const CACHE = 'freshdraw-d2608-1ebf6ea8-facts';
 
 const ASSETS = [
   './',

@@ -68,7 +68,10 @@
   </div>
 
   <div class="colm">
-    <h2>🗣️ Standup Log — session handoffs <span class="count">9</span></h2>
+    <h2>🗣️ Standup Log — session handoffs <span class="count">10</span></h2>
+
+    <div class="card"><span class="id">4 Aug 2026 (later)</span><span class="t">Fun facts panel, framed as history rather than tips</span>
+      <div class="d"><b>Did:</b> added a "Fun facts from the real draws" panel computed in the browser from the dataset already loaded — no new files, no build step, no second copy of the data. Owner asked for something like the source site's tools pages. Those are mostly predictive framing (skip-and-hit, numbers due, number buddies), which is the one thing CLAUDE.md says never to get wrong, so it was raised rather than built as-is. Owner chose history-with-the-twist.<br><br>Each fact pairs an observation with what chance predicts, which turns out to be more interesting than the raw stat: 17 leads 8 by 43 appearances, and plain chance across 40 numbers usually produces a wider gap than that. All 40 numbers sit within two standard deviations of the expected 193. The panel credits lottoresults.co.nz for the draw history and states that the counts are worked out here, not lifted from the site.<br><br>Verified in a real browser: facts match an independent calculation exactly, no page errors, and an automated check confirms no "hot", "cold", "due" or "prediction" language anywhere in the rendered page.<br><br><b>Blocked on:</b> nothing.<br><br><b>Next:</b> B2 still the main one. B8 notes that the fetcher's cache version only tracks data changes, so app-file edits still need a manual CACHE bump.</div></div>
 
     <div class="card"><span class="id">4 Aug 2026</span><span class="t">B1 shipped — real draw data, last 15 years</span>
       <div class="d"><b>Did:</b> built <code>tools/fetch-draws.mjs</code> and shipped <code>data/draws.json</code> with <b>1,289 real NZ Lotto draws, 7 May 2011 to 1 Aug 2026</b>. <code>meta.synthetic</code> is false, the placeholder banner is gone, and no app code changed — <code>app.js</code> already had the real-data branch and derives every figure from the dataset. Owner set the 15-year window; the fetcher takes it as <code>months_back</code>.<br><br>Four bugs, each caught by a guard rather than by reading the code. <b>1.</b> Assumed https; the site is http-only and every request failed while the workflow still reported success. <b>2.</b> <code>Jackpot: Rollover</code> has no amount, so a regex hunting for a number ate the first main ball and shifted every field left. <b>3.</b> Powerball postdates 1987, so pre-Powerball draws render eleven numbers, and reading a fixed position put a Strike ball in the Powerball slot across 21% of history — the 1% gate caught it and refused to write. <b>4.</b> Keying on draw number let a few 2006 pages with wrong numbers overwrite genuine draws.<br><br>The check that did the most work was free: Strike is drawn from the six main numbers, so <code>strike ⊆ main</code> is a correctness assertion on every draw. It caught the shift and then disambiguated the fix.<br><br><b>Blocked on:</b> nothing.<br><br><b>Next:</b> B2 (keep it current after Wed/Sat draws) is now a small step — the fetcher exists and the workflow already commits. B6 covers the archive gap.</div></div>
@@ -121,11 +124,15 @@
   </div>
 
   <div class="colm">
-    <h2>📋 Backlog — review &amp; prioritise <span class="count">3</span></h2>
+    <h2>📋 Backlog — review &amp; prioritise <span class="count">4</span></h2>
 
     <div class="card"><span class="id">B5</span><span class="t">Re-add the PWA from the new URL</span>
       <div class="d">The org move changed the origin from <code>antonydixon-lab.github.io</code> to <code>dixon-app-lab.github.io</code>. A PWA's <code>start_url</code> and <code>scope</code> resolve against wherever it was installed from, so the icon added to the phone on 3 Aug points at the old origin. GitHub redirects the repo, but an installed app holding a cached shell under the old origin is a different matter — worth confirming rather than assuming either way.<br><br>Fix if broken: delete the home-screen icon and re-add from <code>https://dixon-app-lab.github.io/apptest/</code>. This is exactly the risk D2 flagged when it argued for renaming early, which turned out to be right for a reason nobody predicted. Owner-side; cannot be checked from a session.</div>
       <span class="tag small">Small — needs the phone</span></div>
+
+    <div class="card"><span class="id">B8</span><span class="t">Cache version only tracks the dataset</span>
+      <div class="d"><code>tools/fetch-draws.mjs</code> sets <code>sw.js</code>'s <code>CACHE</code> to a hash of the dataset, so data changes always reach phones. It does not cover <code>index.html</code>, <code>app.js</code> or <code>styles.css</code> — those still need a manual bump, as CLAUDE.md says, and the fun facts panel needed one. A later fetch will overwrite the manual suffix, which is harmless (the string still changes, so the update still fires) but untidy. Deriving the version from every cached asset would close it.</div>
+      <span class="tag small">Small</span></div>
 
     <div class="card"><span class="id">B6</span><span class="t">Understand the source's 2025 archive gap</span>
       <div class="d">72 of the 1,361 draw numbers in the collected window are absent (5.3%), clustered in 2187–2196 and a block of 2472–2534 spanning most of 2025. Only <code>/lotto/september-2025</code> actually 404s; the rest are months the site serves without listing every draw. Parsing is not the cause — zero parse problems, uniform token shapes, no duplicate draw numbers across all 1,289.<br><br>Worth a <code>debug_month</code> dump against a 2025 month to see whether those draws are rendered differently or simply absent from the source. Disclosure is already handled: <code>meta.missingDrawCount</code> records it and the app states its own date range.</div>
@@ -163,7 +170,10 @@
   </div>
 
   <div class="colm">
-    <h2 class="donec">✅ Shipped <span class="count">8</span></h2>
+    <h2 class="donec">✅ Shipped <span class="count">9</span></h2>
+
+    <div class="card"><span class="id">B7</span><span class="t">Fun facts panel</span>
+      <div class="d">Five facts counted in the browser from the loaded dataset: the frequency leader and trailer against the spread chance predicts, the most common pair and trio against how many exist, the longest current wait for a number, and the fact that no combination has ever repeated because the draws cover 0.034% of the space. Each is paired with what randomness says, so the panel reinforces the odds argument instead of quietly undercutting it. Sourced to lottoresults.co.nz with the counts explicitly attributed to this app rather than the site. <b>Shipped 4 Aug 2026.</b></div></div>
 
     <div class="card"><span class="id">B1</span><span class="t">Real NZ Lotto draw history, last 15 years</span>
       <div class="d">1,289 real draws, 7 May 2011 to 1 Aug 2026, replacing the synthetic stand-in. <code>meta.synthetic</code> false, placeholder banner gone, <b>no app code changed</b> — the schema really was the contract, as D0 predicted when it argued for building against synthetic data first.<br><br>Verified in a real browser against the new dataset before it was allowed to commit: 1,289 excluded of 3,838,380 (0.034%), odds 1 in 3,838,380 → 1 in 3,837,091, a known past draw correctly rejected, offline reload working. Every one of 1,289 combinations is distinct; zero malformed sets, zero out-of-range Powerballs, zero date-order errors.<br><br>Window is deliberate, not a limitation of the source, and <code>meta.coverage</code> says so. Service worker cache is versioned by a hash of the dataset — an earlier version keyed on the last draw number, which would not have moved when the window narrowed, leaving every installed phone on the old data. <b>Shipped 4 Aug 2026.</b></div></div>

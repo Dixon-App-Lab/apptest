@@ -9,6 +9,8 @@ const el = {
   readout: document.getElementById('readout'),
   dataBadge: document.getElementById('dataBadge'),
   dataProvenance: document.getElementById('dataProvenance'),
+  funFacts: document.getElementById('funFacts'),
+  factsSource: document.getElementById('factsSource'),
   historyPanel: document.getElementById('historyPanel'),
   history: document.getElementById('history'),
   clearHistory: document.getElementById('clearHistory'),
@@ -141,6 +143,102 @@ function renderDataBadge() {
     'Using placeholder draw data — the numbers below are generated correctly, but the "already won" set is synthetic, not real NZ Lotto history.';
 }
 
+/* ---------- fun facts ---------- */
+
+// Every fact pairs an observation with what chance predicts for it. That
+// pairing is the feature, not padding: a bare frequency table sitting next to a
+// Generate button reads as a tip sheet, and this app's whole claim is that the
+// machine has no memory. Nothing here is framed as due, hot or cold.
+function renderFunFacts(draws) {
+  const n = draws.length;
+  const p = config.mainCount / config.mainPool;
+  const expected = n * p;
+  const sd = Math.sqrt(n * p * (1 - p));
+
+  const freq = new Map();
+  const pairs = new Map();
+  const triplets = new Map();
+  const lastSeen = new Map();
+  const bump = (map, key) => map.set(key, (map.get(key) || 0) + 1);
+
+  draws.forEach((draw, index) => {
+    const s = draw.numbers;
+    for (let i = 0; i < s.length; i += 1) {
+      bump(freq, s[i]);
+      lastSeen.set(s[i], index);
+      for (let j = i + 1; j < s.length; j += 1) {
+        bump(pairs, `${s[i]} & ${s[j]}`);
+        for (let k = j + 1; k < s.length; k += 1) bump(triplets, `${s[i]}, ${s[j]} & ${s[k]}`);
+      }
+    }
+  });
+
+  const ranked = (map) => [...map.entries()].sort((a, b) => b[1] - a[1]);
+  const counts = ranked(freq);
+  const [hiN, hiC] = counts[0];
+  const [loN, loC] = counts[counts.length - 1];
+  const withinTwo = counts.filter(([, c]) => Math.abs(c - expected) <= 2 * sd).length;
+
+  const [pairKey, pairCount] = ranked(pairs)[0];
+  const pairSpace = combinations(config.mainPool, 2);
+  const [tripKey, tripCount] = ranked(triplets)[0];
+  const tripSpace = combinations(config.mainPool, 3);
+
+  const [waitN, waitDraws] = [...lastSeen.entries()]
+    .map(([ball, index]) => [ball, n - 1 - index])
+    .sort((a, b) => b[1] - a[1])[0];
+
+  const space = combinations(config.mainPool, config.mainCount);
+  const repeats = n - new Set(draws.map((draw) => canonical(draw.numbers))).size;
+
+  const facts = [
+    [
+      `${hiN} leads ${loN} by ${hiC - loC} — and that is less of a gap than chance usually manages`,
+      `${hiN} has come up ${hiC} times, ${loN} only ${loC}. Across ${nz.format(n)} draws every number is expected about ${Math.round(expected)} times, with a normal spread of roughly ${Math.round(sd)} either side. ${withinTwo === counts.length ? `All ${counts.length}` : `${withinTwo} of the ${counts.length}`} numbers land within two of those — the signature of nothing happening.`,
+    ],
+    [
+      `${pairKey} is the most frequent pairing, ${pairCount} times`,
+      `There are ${nz.format(pairSpace)} possible pairs and the average one appears about ${Math.round((n * combinations(config.mainCount, 2)) / pairSpace)} times. Some pair has to lead, and the leader of a long list always sits well above the average. That is arithmetic, not affinity.`,
+    ],
+    [
+      `${tripKey} is the most frequent trio, ${tripCount} times`,
+      `Out of ${nz.format(tripSpace)} possible trios, averaging about ${((n * combinations(config.mainCount, 3)) / tripSpace).toFixed(1)} appearances each. The more combinations you look across, the further ahead the front-runner gets by luck alone.`,
+    ],
+    [
+      `${waitN} has not appeared for ${waitDraws} draws`,
+      `Its chance in the next draw is ${Math.round(p * 100)}% — the same as every other number's, and the same as it was ${waitDraws} draws ago. A ball that has been skipped is not owed anything.`,
+    ],
+    [
+      repeats === 0
+        ? `Not one combination has ever repeated in ${nz.format(n)} draws`
+        : `${repeats} combination${repeats === 1 ? ' has' : 's have'} come up twice in ${nz.format(n)} draws`,
+      `Less surprising than it sounds: these draws cover ${((n / space) * 100).toFixed(3)}% of the ${nz.format(space)} possible lines. That tiny share is exactly why skipping them barely moves the odds.`,
+    ],
+  ];
+
+  el.funFacts.replaceChildren(
+    ...facts.map(([headline, why]) => {
+      const li = document.createElement('li');
+      const b = document.createElement('b');
+      b.textContent = headline;
+      const span = document.createElement('span');
+      span.textContent = why;
+      li.append(b, span);
+      return li;
+    }),
+  );
+
+  let host = null;
+  try {
+    host = new URL(config.source).host;
+  } catch {
+    /* older datasets carry no source; the sentence just omits it */
+  }
+  el.factsSource.textContent = host
+    ? `Draw history from ${host}, covering ${config.firstDraw} to ${config.lastDraw}. The counts above are worked out from that history by this app, not taken from the site.`
+    : `Counted from the loaded draw history, ${config.firstDraw} to ${config.lastDraw}.`;
+}
+
 /* ---------- history persistence ---------- */
 
 function loadHistory() {
@@ -193,6 +291,7 @@ async function init() {
 
     describeOdds();
     renderDataBadge();
+    renderFunFacts(payload.draws);
 
     el.generate.disabled = false;
     el.generate.textContent = 'Generate a line';
