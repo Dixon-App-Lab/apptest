@@ -24,7 +24,10 @@
 import { readFile, writeFile } from 'node:fs/promises';
 
 const DELAY_MS = 700;
-const MAX_MONTHS = Number(process.env.MAX_MONTHS || 0); // 0 = every month found
+// Scope and dry-run are separate: limiting how far back to go is a product
+// decision, not a rehearsal. 0 = every month the archive lists.
+const MONTHS_BACK = Number(process.env.MONTHS_BACK || 0);
+const DRY_RUN = process.env.DRY_RUN === 'true';
 const UA = 'FreshDrawFetch/1 (+https://github.com/Dixon-App-Lab/apptest) dataset build';
 
 const MONTHS = ['january','february','march','april','may','june','july','august','september','october','november','december'];
@@ -178,8 +181,12 @@ if (process.env.DEBUG_MONTH) {
   process.exit(0);
 }
 
-const todo = MAX_MONTHS > 0 ? monthList.slice(-MAX_MONTHS) : monthList;
-console.log(`fetching ${todo.length} month page(s)${MAX_MONTHS ? ' (SMOKE RUN — partial)' : ''}\n`);
+const todo = MONTHS_BACK > 0 ? monthList.slice(-MONTHS_BACK) : monthList;
+console.log(
+  `fetching ${todo.length} of ${monthList.length} month page(s)` +
+    `${MONTHS_BACK ? ` — newest ${MONTHS_BACK} months (~${(MONTHS_BACK / 12).toFixed(1)} years)` : ' — full archive'}` +
+    `${DRY_RUN ? '  [DRY RUN — writes nothing]' : ''}\n`,
+);
 
 const byDraw = new Map();
 const shapes = new Map();
@@ -247,10 +254,14 @@ for (const d of draws) {
     seenNumbers.set(d.draw, d.date);
   }
 }
+// Count gaps inside the window that was actually requested. Measuring from
+// draw 1 when only the last 15 years were asked for would report thousands
+// "missing" that were never in scope, which tells the reader nothing.
 const present = new Set(draws.map((d) => d.draw));
 const highest = Math.max(...present);
+const lowest = Math.min(...present);
 const missingNumbers = [];
-for (let n = 1; n <= highest; n += 1) if (!present.has(n)) missingNumbers.push(n);
+for (let n = lowest; n <= highest; n += 1) if (!present.has(n)) missingNumbers.push(n);
 
 console.log(`\n${'='.repeat(60)}`);
 console.log(`parsed draws     : ${draws.length}`);
@@ -273,11 +284,12 @@ for (let i = 1; i < draws.length; i += 1) {
   if (draws[i].draw !== draws[i - 1].draw + 1) gaps.push(`${draws[i - 1].draw}->${draws[i].draw}`);
 }
 console.log(`duplicate draw nos: ${conflicts.length}${conflicts.length ? ` — ${conflicts.slice(0, 6).join('; ')}` : ''}`);
-console.log(`missing draw nos : ${missingNumbers.length} of ${highest} (${((missingNumbers.length / highest) * 100).toFixed(1)}% of the numbering absent)`);
+console.log(`window           : draws ${lowest}-${highest} (${highest - lowest + 1} numbered)`);
+console.log(`missing in window: ${missingNumbers.length} (${((missingNumbers.length / (highest - lowest + 1)) * 100).toFixed(1)}%)`);
 console.log(`legacy gap check : ${gaps.length}${gaps.length ? ` (${gaps.slice(0, 10).join(', ')}${gaps.length > 10 ? ', …' : ''})` : ''}`);
 
-if (MAX_MONTHS > 0) {
-  console.log('\nSMOKE RUN — nothing written. Re-run with max_months = 0 for the full dataset.');
+if (DRY_RUN) {
+  console.log('\nDRY RUN — nothing written.');
   process.exit(0);
 }
 
@@ -304,8 +316,12 @@ const out = {
     // Coverage is not complete and the dataset should say so rather than let a
     // reader assume every draw is here. highestDrawNumber minus drawCount is
     // what the exclusion set is missing.
+    lowestDrawNumber: lowest,
     highestDrawNumber: highest,
     missingDrawCount: missingNumbers.length,
+    coverage: MONTHS_BACK
+      ? `newest ${MONTHS_BACK} month pages; earlier draws deliberately not collected`
+      : 'full archive as published by the source',
   },
   draws,
 };

@@ -13,10 +13,16 @@ name: Fetch real draw data (B1)
 on:
   workflow_dispatch:
     inputs:
-      max_months:
-        description: 'Month pages to fetch (from newest). 0 = all. Non-zero is a smoke run and writes nothing.'
+      months_back:
+        description: 'How far back to collect, in month pages from newest. 180 = 15 years. 0 = the whole archive.'
         required: true
-        default: '6'
+        default: '180'
+      dry_run:
+        description: 'Report findings without writing or committing anything.'
+        required: true
+        default: 'false'
+        type: choice
+        options: ['false', 'true']
       debug_month:
         description: 'Optional: dump one month page as text and stop, e.g. /lotto/september-2022'
         required: false
@@ -36,14 +42,15 @@ jobs:
 
       - name: Build the dataset
         env:
-          MAX_MONTHS: ${{ inputs.max_months }}
+          MONTHS_BACK: ${{ inputs.months_back }}
+          DRY_RUN: ${{ inputs.dry_run }}
           DEBUG_MONTH: ${{ inputs.debug_month }}
         run: node tools/fetch-draws.mjs
 
       # Verify before committing: a dataset that breaks the app is worse than
       # no dataset, and the harness drives a real browser against it.
       - name: Verify against the new data
-        if: inputs.max_months == '0' && inputs.debug_month == ''
+        if: inputs.dry_run == 'false' && inputs.debug_month == ''
         run: |
           npm ci
           npx playwright-core install --with-deps chromium
@@ -54,7 +61,7 @@ jobs:
           npm run verify
 
       - name: Commit
-        if: inputs.max_months == '0' && inputs.debug_month == ''
+        if: inputs.dry_run == 'false' && inputs.debug_month == ''
         run: |
           if git diff --quiet -- data/draws.json sw.js; then
             echo "No change to commit."
@@ -63,14 +70,13 @@ jobs:
           git config user.name  'github-actions[bot]'
           git config user.email 'github-actions[bot]@users.noreply.github.com'
           git add data/draws.json sw.js
-          git commit -m "Swap in real NZ Lotto draw history
+          git commit -m "Update the real NZ Lotto draw dataset
 
-          Replaces the synthetic dataset with draws fetched from
-          lottoresults.co.nz and sets meta.synthetic to false, which drops the
-          placeholder banner. No app code changes -- the schema is the contract.
+          Rebuilt by tools/fetch-draws.mjs via the Fetch real draw data
+          workflow. meta records the window collected and how many draw
+          numbers are missing inside it, so the dataset states its own
+          coverage rather than implying it is complete.
 
           sw.js CACHE is bumped to match the last draw so phones do not keep
-          serving the synthetic data from cache.
-
-          Built by tools/fetch-draws.mjs via the Fetch real draw data workflow."
+          serving the previous dataset from cache."
           git push
